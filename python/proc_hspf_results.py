@@ -16,7 +16,7 @@ def proc_hspf_results(n):
 
     wdm.open(wdmFile, 'r')
 
-    dsns = [11]
+    dsns = [3, 11]
 
     # INITIALIZE THE OUTPUT DATAFRAME INCLUDING THE DATE/TIME
     start = datetime.datetime(2004, 1, 1)
@@ -49,9 +49,9 @@ def proc_hspf_results(n):
     tmp = pd.DataFrame.from_items(zip(datNms, datOut))
 
     # Slice the data to remove dates outside of calibration period
-    cutStr = datetime.datetime(2007, 10, 1)
+    cutStr = datetime.datetime(2004, 10, 1)
 
-    cutEnd = datetime.datetime(2014, 10, 1)
+    cutEnd = datetime.datetime(2017, 10, 1)
         
     dfOut = tmp.loc[(tmp['Date'] >= cutStr) & (tmp['Date'] <= cutEnd), ]
 

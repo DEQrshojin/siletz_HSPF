@@ -1,142 +1,304 @@
 for (i in 1) {
-  
+  # LIBRARIES ----
   suppressMessages(library(hydroGOF))
   suppressMessages(library(ggplot2))
   suppressMessages(library(scales))
   suppressMessages(library(lubridate))
+  suppressMessages(library(stats))
 
   options(warn = -1)
-  
-  # Load the functions ----
+
+  # LOAD FUNCTIONS ----
   filPath <- 'C:/siletz/'
   
   datPath <- paste0(filPath, 'calib')
   
   pltPath <- paste0(datPath, '/plots')
   
-  # Source the functions ----
+  # Source the functions 
   sapply(paste0(filPath, 'scripts/R/',
                 c('calib_monNSE.R', 'calib_FDC.R',
                   'move_hspf_files.R')), source)
   
-  # Read the counter from file to get the run number ----
-  countFil = file(paste0(filPath, 'count.txt'))
+  # CALIBRATION INPUTS ----
+  # Dates
+  strCal <- '2005-10-01'
   
-  n = as.numeric(readLines(countFil))
+  endCal <- '2017-09-30'
   
-  # Calibration Inputs ----
-  strCal <- '2008-10-01'
-  endCal <- '2014-09-30'
   strCal <- as.POSIXct(strCal, format = '%Y-%m-%d')
+  
   endCal <- as.POSIXct(endCal, format = '%Y-%m-%d')
   
   ts <- data.frame('Date' = seq(strCal, endCal, 3600))
-  
-  objFun <- list('dayNSE' = TRUE,            # Daily Nash-Sutcliffe Efficiency
-                 'monNSE' = TRUE,            # Monthly Nash-Sutcliffe Efficiency
-                 'flwDur' = TRUE,            # Flow Duration Curves
-                 'transf' = NULL,            # Specify transformation
-                 'annPer' = c('year round')) # Period of assessment; e.g.'fall'
-  
-  fdcPar <- c(100, 1) # Inputs for Flow Duration Curve
-  
-  calStt = list('dayNSE' = NULL,           # Daily Nash-Sutcliffe Efficiency
-                'monNSE' = NULL,           # Monthly Nash-Sutcliffe Efficiency
-                'fdcRMSE' = NULL)          # Flow duration curve RMSE
-  
-  # Load model data ----
-  qData <- read.csv('C:/siletz/calib/qmod.csv', stringsAsFactors = FALSE)
-  
-  # qData <- qData[, c(1, 12)]
-  
-  names(qData) <- c('Date', 'B11')
-  
-  qData$Date <- as.POSIXct(qData$Date,
-                          '%Y-%m-%d %H:%M:%S',
-                          tz = 'America/Los_Angeles')
-  
-  qData <- qData[(qData$Date >= strCal & qData$Date <= endCal), ]
 
-  # Load observations ----
+  # Read the counter
+  countFil = file(paste0(filPath, 'count.txt'))
+
+  n = as.numeric(readLines(countFil))  
+  
+  # LOAD, MERGE, AND PROCESS DATA ----
+  qData <- read.csv('C:/siletz/calib/qmod.csv', stringsAsFactors = FALSE)
+
   qGage <- read.csv('C:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
-  qGage$DATE <- as.POSIXct(qGage$DATE,
-                           '%m/%d/%Y %H:%M',
+  qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
                            tz = 'America/Los_Angeles')
+  
+  qGage$DATE <- as.POSIXct(qGage$DATE, '%m/%d/%Y %H:%M',
+                           tz = 'America/Los_Angeles')
+  
+  calDat <- merge(ts, qData, by.x = 'Date', by.y = 'Date', all.x = TRUE,
+                  all.y = FALSE)
+  
+  calDat <- merge(calDat, qGage, by.x = 'Date', by.y = 'DATE', all.x = TRUE,
+                  all.y = FALSE)
+  
+  calDat[, 2 : 3] <- round(calDat[, 2 : 3], 1)
+  
+  calDat <- calDat[, c(1, 4, 3, 5, 2)]
+  
+  names(calDat) <- c('Datetime', 'qSlz_G', 'qSlz_M', 'qSun_G', 'qSun_M')
+  
+  calDat$YR <- year(calDat$Date)
+  
+  calDat$MN <- month(calDat$Date)
+  
+  calDat$Date <- as.Date(calDat$Datetime, '%Y-%m-%d %H:%M:%S')
+  
+  calDat$DOY <- yday(calDat$Date)
+  
+  calDat$Mndt <- as.Date(paste0(calDat$YR, '-',
+                                ifelse(calDat$MN < 10, 0, ''), calDat$MN,
+                                '-01'),
+                         '%Y-%m-%d')
+  
+  calDat <- calDat[complete.cases(calDat$Datetime), ]
+  
+  # AUDIT SUNSHINE DATA (BASED ON GRAPH) ----
+  pAud <- data.frame('p1' = as.POSIXct(c('2007-11-25', '2009-08-19'),
+                                       '%Y-%m-%d', tz = 'America/Los_Angeles'),
+                     'p2' = as.POSIXct(c('2015-08-31', '2016-06-07'), 
+                                    '%Y-%m-%d', tz = 'America/Los_Angeles'),
+                     stringsAsFactors = FALSE)
+  
+  calDat[which(calDat[, 1] > pAud[1, 1] & calDat[, 1] < pAud[2, 1]), 4] <- NA
+  
+  calDat[which(calDat[, 1] > pAud[1, 2] & calDat[, 1] < pAud[2, 2]), 4] <- NA
+  
+  # MEAN DAILY FLOWS ----
+  datDly <- aggregate(calDat[, 2 : 5], by = list(calDat$Date), mean,
+                      na.rm = TRUE)
+  
+  datDly[, 2 : 5] <- round(datDly[, 2 : 5], 1)
+  
+  colnames(datDly)[1] <- 'Date'
+  
+  datDly$YR <- year(datDly$Date)
+  
+  datDly$MO <- month(datDly$Date)
+  
+  # Hydrologic year
+  datDly$HY <- ifelse(datDly$MO >= 10, datDly$YR + 1, datDly$YR)
+  
+  datDly$HDOY <- 0
+  
+  # Day of year beginning at the start of the hydro year (Oct)
+  for (i in 1 : nrow(datDly)) {
+    
+    if ((day(datDly[i, 1]) == 1) & (datDly[i, 7] == 10)) {
+      
+      datDly[i, 9] = 1
+      
+    } else {
+      
+      datDly[i, 9] = datDly[i - 1, 9] + 1
+      
+    }
+  }
+  
+  datDly <- datDly[-nrow(datDly), ]
+  
+  # Set the zeros in Sunshine Gage data to NA
+  datDly[is.nan(datDly[, 4]), 4] <- NA
+  
+  # MEAN MONTHLY VOLUMES ----
+  datMnt <- aggregate(calDat[, 2 : 5], by = list(calDat$Mndt), mean,
+                      na.rm = TRUE)
+  
+  colnames(datMnt)[1] <- 'Date'
 
-  qGage$Q_slz <- as.numeric(qGage$Q_slz)
+  dlyPrior2 <- as.Date('2014-10-01', '%Y-%m-%d')
   
-  # Merge the tables into one ----
-  calDat <- merge(ts, qData, by.x = 'Date', by.y = 'Date', all.x = TRUE)
-  
-  calDat <- merge(calDat, qGage, by.x = 'Date', by.y = 'DATE', all.x = TRUE)
-  
-  names(calDat) <- c('Date', 'MDL_Q', 'GGE_Q')
-  
-  # Run the calibration ----
-  trnsFun = objFun[['transf']]
-  
-  if(!is.null(objFun[['dayNSE']])) {
-    
-    calStt[['dayNSE']] = NSE(calDat$MDL_Q,
-                             calDat$GGE_Q,
-                             na.rm = TRUE,
-                             FUN = trnsFun)
-    
-  }
-  
-  if (!is.null(objFun[['monNSE']])) {
-    
-    calStt[['monNSE']] = calib_monNSE(calDat, trnsFun)
-    
-  }
-  
-  if (!is.null(objFun[['flwDur']])) {
-    
-    calStt[['fdcRMSE']] = calib_FDC(calDat, fdcPar, pltPath, n)
-    
-  }
-  
-  calSttOut = data.frame(dailyNSE = calStt[['dayNSE']],
-                         monthNSE = calStt[['monNSE']],
-                         fdcRMSE = calStt[['fdcRMSE']],
-                         stringsAsFactors = FALSE)
-  
-  write.csv(calSttOut, 'C:/siletz/calib/cal_stat.csv')
-  
-  # SET NEW PLOT LIMITS TO ONE YEAR; COMMENT OUT IF YOU WANT THE WHOLE YEAR ----
-  strCal <- '2008-10-01'
-  endCal <- '2014-09-30'
-  strCal <- as.POSIXct(strCal, format = '%Y-%m-%d')
-  endCal <- as.POSIXct(endCal, format = '%Y-%m-%d')
-  # ----------------------------------------------------------------------------
+  # Set the zeros in Sunshine Gage data to NA
+  datMnt[is.nan(datMnt[, 4]), 4] <- NA
 
-  # Print out calibration graphs 1) timeseries 2) scatterplot 3) ----
-  calPlot = ggplot(data = calDat) +
-    geom_line(aes(x = Date, y = MDL_Q), size = 1.1, color = "blue") + 
-    geom_point(aes(x = Date, y = GGE_Q), size = 1.2, color = 'red') + 
-    scale_y_log10(limits = c(10, 50000)) + 
-    scale_x_datetime(limits = c(strCal, endCal),
-                     breaks = date_breaks("3 months"),
-                     labels = date_format("%Y-%b")) +
+  # Convert to 1000 x AF (1 cfs = 1.98347 AF/day)
+  datMnt[, 2 : 5] <- datMnt[, 2 : 5] * 1.98347 / 1000
+
+  # Sunshine gage data with only daily data, multiply the volume by 24 (hours)
+  datMnt$YR <- year(datMnt$Date)
+  
+  datMnt$MN <- month(datMnt$Date)
+  
+  datMnt$HY <- ifelse(datMnt$MN < 10, datMnt$YR, datMnt$YR + 1)
+
+  # QUANTILES ----
+  pct <- c(0.1, 0.25, 0.50, 0.75, 0.9)
+  
+  qntSlz <- quantile(datDly$qSlz_G, pct, na.rm = TRUE)
+
+  qntSun <- quantile(datDly$qSun_G, pct, na.rm = TRUE)
+  
+  pcNm <- names(qntSun)
+
+  # PLOT TIME SERIES ----
+  slzPlot = ggplot(data = datDly) +
+    geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
+    geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
+    scale_y_log10(limits = c(1, 50000), labels = comma) +
+    xlab("Day of the year") + ylab("Flow (cfs)") +
+    facet_wrap(~ HY, ncol = 3) + 
+    geom_hline(yintercept = qntSlz[1], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSlz[2], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSlz[3], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSlz[4], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSlz[5], size = 0.4, linetype = 2) +
+    annotate("text", 330, qntSlz[1], label = pcNm[1], vjust = 0, size = 3.0) +
+    annotate("text", 330, qntSlz[2], label = pcNm[2], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSlz[4], label = pcNm[4], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
+  
+  sunPlot = ggplot(data = datDly) +
+    geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
+    geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
+    scale_y_log10(limits = c(0.1, 5000), labels = comma) +
     xlab("Date") + ylab("Flow (cfs)") +
-    theme_bw() + theme(legend.position = c(0, 1),
-                       panel.grid.minor=element_blank(),
-                       axis.title.x = element_blank(),
-                       axis.text.x = element_text(size = 13,
-                                                  angle = 45,
-                                                  hjust = 1),
-                       axis.title.y = element_text(size = 13),
-                       axis.text.y = element_text(size = 13),
-                       plot.title = element_text(size = 13, hjust = 0.5)) +
-    annotate("text", x = strCal + 120 * 86400, y = 10, size = 16,
-             label = paste0('RUN ', n), hjust = 0)
-
-  ggsave(filename = paste0('calibration_plot_', n, '.png'),
-         plot = calPlot, path = pltPath,
-         width = 15, height = 10,
-         dpi = 300, units = 'in')
+    facet_wrap(~ HY, ncol = 3) + 
+    geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSun[2], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSun[4], size = 0.4, linetype = 2) +
+    geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
+    annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
+    annotate("text", 330, qntSun[2], label = pcNm[2], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSun[4], label = pcNm[4], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
   
+  ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
+         path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')  
+  
+  ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
+         path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')  
+    
+  # CALIBRATION COMPONENTS ----
+  # TIME (MATCHING) DEPENDENT:
+  # - Mean Daily NSE      (12 * 365 = 4382 observations)
+  # THIS ONE____________________________________________________________________
+  dayNSESlz <- round(NSE(datDly$qSlz_M,datDly$qSlz_G,
+                         na.rm = TRUE, FUN = log), 3) 
+  
+  dayNSESun <- round(NSE(datDly$qSun_M, datDly$qSun_G,
+                         na.rm = TRUE, FUN = log), 3)
+  # THIS ONE____________________________________________________________________
+  
+  # PLOT SCATTER AND REGRESSION ??? MAYBE LATER
+  
+  # - Monthly NSE         (12 *  12 =  144 observations)
+  # THIS ONE____________________________________________________________________
+  mntNSESlz <- round(NSE(datMnt$qSlz_M, datMnt$qSlz_G,
+                         na.rm = TRUE, FUN = NULL), 3)
+  
+  mntNSESun <- round(NSE(datMnt$qSun_M, datMnt$qSun_G,
+                         na.rm = TRUE, FUN = NULL), 3)
+  # THIS ONE____________________________________________________________________
+  
+  # PLOT SCATTER AND REGRESSION ??? MAYBE LATER
+  
+  # TIME INDEPENDENT:
+  # - Flow duration curve
+  # THIS ONE____________________________________________________________________
+  fdcRMSESlz = round(calib_FDC(datDly$qSlz_G,
+                               datDly$qSlz_M, pltPath, 'slz', n), 3)
+  
+  fdcRMSESun = round(calib_FDC(datDly$qSun_G, 
+                               datDly$qSun_M, pltPath, 'sun', n), 3)
+  # THIS ONE____________________________________________________________________
+  
+  # - Annual volume error
+  datYrl <- aggregate(datMnt[, 2 : 5], by = list(datMnt$HY), sum, na.rm = FALSE)
+  
+  datYrl[is.na(datYrl$qSun_G), 5] <- NA
+  
+  colnames(datYrl)[1] <- 'Date'
+  
+  datYrl$SZErr <- round(100 * (datYrl$qSlz_M - datYrl$qSlz_G) / datYrl$qSlz_G, 1)
+  
+  datYrl$SnErr <- round(100 * (datYrl$qSun_M - datYrl$qSun_G) / datYrl$qSun_G, 1)
+  
+  # Total Percent BIAS (PBIAS)
+  volTotal <- colSums(datYrl[, 2 : 5], na.rm = TRUE)
+  
+  # THIS ONE____________________________________________________________________
+  pBallSlz <- round(100 * (volTotal[2] - volTotal[1]) / volTotal[1], 1)
+  
+  pBallSun <- round(100 * (volTotal[4] - volTotal[3]) / volTotal[3], 1)
+  # THIS ONE____________________________________________________________________
+  
+  # - Dry season volume error (July - Sept)
+  datDry <- datMnt[datMnt$MN %in% c(7, 8, 9), ]
+  
+  datDry[is.na(datDry$qSun_G), 5] <- NA
+  
+  dryTotal <- colSums(datDry[, 2 : 5], na.rm = TRUE)
+  
+  # THIS ONE____________________________________________________________________
+  pBDrySlz <- round(100 * (dryTotal[2] - dryTotal[1]) / volTotal[1], 1)
+  
+  pBDrySun <- round(100 * (dryTotal[4] - dryTotal[3]) / dryTotal[3], 1)
+  # THIS ONE____________________________________________________________________
+  
+  # Storm (Upper 10% flows)
+  datStrSlz <- datDly[datDly$qSlz_G >= qntSlz[5], c(1 : 3)]
+  
+  datStrSun <- datDly[datDly$qSun_G >= qntSun[5], c(1, 4, 5)]
+  
+  datStrSun <- datStrSun[complete.cases(datStrSun), ]
+  
+  # Convert to 1000 x ac-ft  
+  datStrSlz[, 2 : 3] <- datStrSlz[, 2 : 3] * 1.98347 / 1000
+  
+  datStrSun[, 2 : 3] <- datStrSun[, 2 : 3] * 1.98347 / 1000
+  
+  volStrSlz <- colSums(datStrSlz[, 2 : 3], na.rm = TRUE)
+  
+  volStrSun <- colSums(datStrSun[, 2 : 3], na.rm = TRUE)
+  
+  # THIS ONE____________________________________________________________________
+  pBStrSlz <- round(100 * (volStrSlz[2] - volStrSlz[1]) / volStrSlz[1], 2)
+    
+  pBStrSun <- round(100 * (volStrSun[2] - volStrSun[1]) / volStrSun[1], 2)
+  # THIS ONE____________________________________________________________________
+
+  calSttOut <- data.frame('dNSESz' = dayNSESlz,
+                          'mNSESz' = mntNSESlz,
+                          'FDCSz' = fdcRMSESlz,
+                          'PBSz' = pBallSlz,
+                          'PBDSz' = pBDrySlz,
+                          'PBSSz' = pBStrSlz,
+                          'dNSESn' = dayNSESun,
+                          'mNSESn' = mntNSESun,
+                          'FDCSn' = fdcRMSESun,
+                          'PBSn' = pBallSun, 
+                          'PBDSn' = pBDrySun,
+                          'PBSSn' = pBStrSun,
+                          stringsAsFactors = FALSE)
+  
+  write.csv(calSttOut, 'C:/siletz/calib/cal_stat.csv', row.names = FALSE)
+  
+  # TIDY UP! ----
   # Move the output files to storage folders
   move_hspf_files(filPath, n)
   
@@ -144,7 +306,7 @@ for (i in 1) {
   n = n + 1
   
   writeLines(as.character(n), countFil)
-
+  
   close(countFil)
 
 }
