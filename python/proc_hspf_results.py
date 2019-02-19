@@ -10,7 +10,7 @@ def proc_hspf_results(n):
     # OPEN THE OUTPUT WDM AND GET THE DSNS
     messagepath = 'hspfmsg.wdm'
 
-    wdm = WDMUtil(verbose = True, messagepath = messagepath)
+    wdm = WDMUtil(verbose = False, messagepath = messagepath)
 
     wdmFile = 'siletz' + str(n) + '_out.wdm'
 

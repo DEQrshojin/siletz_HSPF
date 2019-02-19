@@ -22,7 +22,7 @@ for (i in 1) {
   
   # CALIBRATION INPUTS ----
   # Dates
-  strCal <- '2005-10-01'
+  strCal <- '2004-10-01'
   
   endCal <- '2017-09-30'
   
@@ -45,20 +45,14 @@ for (i in 1) {
   qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
                            tz = 'America/Los_Angeles')
   
-  qGage$DATE <- as.POSIXct(qGage$DATE, '%m/%d/%Y %H:%M',
-                           tz = 'America/Los_Angeles')
+  qGage$Date <- as.Date(qGage$Date, '%Y-%m-%d', tz = 'America/Los_Angeles')
   
   calDat <- merge(ts, qData, by.x = 'Date', by.y = 'Date', all.x = TRUE,
                   all.y = FALSE)
   
-  calDat <- merge(calDat, qGage, by.x = 'Date', by.y = 'DATE', all.x = TRUE,
-                  all.y = FALSE)
+  calDat <- calDat[, c(1, 3, 2)]
   
-  calDat[, 2 : 3] <- round(calDat[, 2 : 3], 1)
-  
-  calDat <- calDat[, c(1, 4, 3, 5, 2)]
-  
-  names(calDat) <- c('Datetime', 'qSlz_G', 'qSlz_M', 'qSun_G', 'qSun_M')
+  names(calDat) <- c('Datetime', 'qSlz_M', 'qSun_M')
   
   calDat$YR <- year(calDat$Date)
   
@@ -75,29 +69,38 @@ for (i in 1) {
   
   calDat <- calDat[complete.cases(calDat$Datetime), ]
   
-  # AUDIT SUNSHINE DATA (BASED ON GRAPH) ----
-  pAud <- data.frame('p1' = as.POSIXct(c('2007-11-25', '2009-08-19'),
-                                       '%Y-%m-%d', tz = 'America/Los_Angeles'),
-                     'p2' = as.POSIXct(c('2015-08-31', '2016-06-07'), 
-                                    '%Y-%m-%d', tz = 'America/Los_Angeles'),
-                     stringsAsFactors = FALSE)
-  
-  calDat[which(calDat[, 1] > pAud[1, 1] & calDat[, 1] < pAud[2, 1]), 4] <- NA
-  
-  calDat[which(calDat[, 1] > pAud[1, 2] & calDat[, 1] < pAud[2, 2]), 4] <- NA
-  
+  # # AUDIT SUNSHINE DATA (BASED ON GRAPH) ----
   # MEAN DAILY FLOWS ----
-  datDly <- aggregate(calDat[, 2 : 5], by = list(calDat$Date), mean,
+  datDly <- aggregate(calDat[, 2 : 3], by = list(calDat$Date), mean,
                       na.rm = TRUE)
   
-  datDly[, 2 : 5] <- round(datDly[, 2 : 5], 1)
-  
   colnames(datDly)[1] <- 'Date'
+  
+  datDly <- merge(datDly, qGage, by.x = 'Date', by.y = 'Date',
+                  all.x = TRUE, all.y = FALSE)
+  
+  names(datDly) <- c('Date', 'qSlz_M', 'qSun_M', 'qSlz_G', 'qSun_G')
+  
+  datDly <- datDly[, c(1, 4, 2, 5, 3)]
+  
+  datDly[, 2 : 5] <- round(datDly[, 2 : 5], 1)
   
   datDly$YR <- year(datDly$Date)
   
   datDly$MO <- month(datDly$Date)
   
+  pAud <- data.frame('p1' = as.Date(c('2007-11-25', '2009-08-19'), '%Y-%m-%d'),
+                     'p2' = as.Date(c('2015-08-31', '2016-06-07'),'%Y-%m-%d'),
+                     stringsAsFactors = FALSE)
+
+  datDly[which(datDly[, 1] > pAud[1, 1] & datDly[, 1] < pAud[2, 1]), 4] <- NA
+
+  datDly[which(datDly[, 1] > pAud[1, 2] & datDly[, 1] < pAud[2, 2]), 4] <- NA
+  
+  datDly[is.na(datDly$qSlz_G), 3] <- NA
+  
+  datDly[is.na(datDly$qSun_G), 5] <- NA
+
   # Hydrologic year
   datDly$HY <- ifelse(datDly$MO >= 10, datDly$YR + 1, datDly$YR)
   
@@ -116,14 +119,13 @@ for (i in 1) {
       
     }
   }
-  
-  datDly <- datDly[-nrow(datDly), ]
-  
-  # Set the zeros in Sunshine Gage data to NA
-  datDly[is.nan(datDly[, 4]), 4] <- NA
+
+  datDly$Mndt <- as.Date(paste0(datDly$YR, '-',
+                                ifelse(datDly$MO < 10, 0, ''),
+                                datDly$MO, '-01'), '%Y-%m-%d')
   
   # MEAN MONTHLY VOLUMES ----
-  datMnt <- aggregate(calDat[, 2 : 5], by = list(calDat$Mndt), mean,
+  datMnt <- aggregate(datDly[, 2 : 5], by = list(datDly$Mndt), mean,
                       na.rm = TRUE)
   
   colnames(datMnt)[1] <- 'Date'
@@ -131,7 +133,7 @@ for (i in 1) {
   dlyPrior2 <- as.Date('2014-10-01', '%Y-%m-%d')
   
   # Set the zeros in Sunshine Gage data to NA
-  datMnt[is.nan(datMnt[, 4]), 4] <- NA
+  datMnt[is.nan(datMnt[, 4]), 4 : 5] <- NA
 
   # Convert to 1000 x AF (1 cfs = 1.98347 AF/day)
   datMnt[, 2 : 5] <- datMnt[, 2 : 5] * 1.98347 / 1000
@@ -144,7 +146,7 @@ for (i in 1) {
   datMnt$HY <- ifelse(datMnt$MN < 10, datMnt$YR, datMnt$YR + 1)
 
   # QUANTILES ----
-  pct <- c(0.1, 0.25, 0.50, 0.75, 0.9)
+  pct <- c(0.05, 0.25, 0.50, 0.75, 0.95)
   
   qntSlz <- quantile(datDly$qSlz_G, pct, na.rm = TRUE)
 
