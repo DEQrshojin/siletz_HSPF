@@ -46,6 +46,8 @@ def proc_hspf_results(n):
     wdm.close(wdmFile)
 
     # COERCE TO DATAFRAME AND WRITE TO FILE
+    data = {'Names': datNms, 'col_2': ['a', 'b', 'c', 'd']}
+
     tmp = pd.DataFrame.from_items(zip(datNms, datOut))
 
     # Slice the data to remove dates outside of calibration period
