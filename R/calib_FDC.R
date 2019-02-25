@@ -2,35 +2,26 @@ calib_FDC = function(ggeDat, mdlDat, pltPath, site, n) {
   
   library(ggplot2)
   library(reshape2)
+  library(hydroGOF)
 
   # Initialize percentages vector
   flwDur = data.frame('PCT' = seq(from = 0, to = 100, by = 1) / 100)
   
   flwDur$revPCT <- seq(from = 100, to = 0, by = -1) / 100
-  
+
   # Calculate percentiles
   flwDur$MDL_Q = quantile(mdlDat, flwDur$PCT, na.rm = TRUE)
   
   flwDur$GGE_Q = quantile(ggeDat, flwDur$PCT, na.rm = TRUE)
   
-  # Set the limits for the y axis
-  durLims <- log10(c(min(flwDur[, 3 : 4], na.rm = TRUE),
-                     max(flwDur[, 3 : 4], na.rm = TRUE)))
-  
-  durLims <- c(floor(durLims[1]), ceiling(durLims[2]))
-  
-  durLims <- 10^durLims
-  
   # FOR NOW USE RMSE FOR COMPARISON OF FDC
-  fdcRMSE = rmse(flwDur$GGE_Q, flwDur$MDL_Q, na.rm = TRUE) /
-            (quantile(flwDur$GGE_Q, 1.00, na.rm = TRUE) -
-            quantile(flwDur$MDL_Q, 0.00, na.rm = TRUE))
+  fdcNSE = NSE(flwDur$MDL_Q, flwDur$GGE_Q, na.rm = TRUE, FUN = log)
 
   # Reshape for graphing
   flwDurP = melt(flwDur, id.vars = 'revPCT')
   
   flwDurP = flwDurP[flwDurP$variable != 'PCT', ]
-  
+
   fdcPlot = ggplot(data = flwDurP) +
             geom_line(aes(x = revPCT, y = value,
                           group = variable,
@@ -40,7 +31,7 @@ calib_FDC = function(ggeDat, mdlDat, pltPath, site, n) {
                                           '0.5' = '50', '0.75' = '75',
                                           '100' = '100')) + 
             ylab("Flow (cfs)") + theme_bw() +
-            scale_y_log10(limits = durLims, labels = comma) +
+            scale_y_log10(labels = comma) +
             theme(legend.position = c(0.2, 0.8),
                   panel.grid.minor = element_blank(),
                   axis.text.x = element_text(size = 13),
@@ -54,6 +45,6 @@ calib_FDC = function(ggeDat, mdlDat, pltPath, site, n) {
   ggsave(filename = paste0('fdc_plot_', site, '_', n, '.png'), plot = fdcPlot,
          path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')
   
-  return(fdcRMSE)
+  return(fdcNSE)
   
 }

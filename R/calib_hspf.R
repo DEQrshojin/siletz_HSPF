@@ -1,3 +1,9 @@
+#! C:/Program Files/R/R-3.5.2/bin Rscript
+
+# RUN CALIBRATION STATISTICS AND GRAPHS FOR GIVEN MODEL RUN
+# Ryan Shojinaga, Water Quality Analyst, NRS3, Oregon DEQ
+# shojinaga.ryan@deq.state.or.us, 503-229-5777
+
 for (i in 1) {
   # LIBRARIES ----
   suppressMessages(library(hydroGOF))
@@ -69,7 +75,6 @@ for (i in 1) {
   
   calDat <- calDat[complete.cases(calDat$Datetime), ]
   
-  # # AUDIT SUNSHINE DATA (BASED ON GRAPH) ----
   # MEAN DAILY FLOWS ----
   datDly <- aggregate(calDat[, 2 : 3], by = list(calDat$Date), mean,
                       na.rm = TRUE)
@@ -123,7 +128,9 @@ for (i in 1) {
   datDly$Mndt <- as.Date(paste0(datDly$YR, '-',
                                 ifelse(datDly$MO < 10, 0, ''),
                                 datDly$MO, '-01'), '%Y-%m-%d')
-  
+
+  datDly$qSun_M <- ifelse(datDly$qSun_M == 0, 1e-6, datDly$qSun_M)
+    
   # MEAN MONTHLY VOLUMES ----
   datMnt <- aggregate(datDly[, 2 : 5], by = list(datDly$Mndt), mean,
                       na.rm = TRUE)
@@ -154,10 +161,28 @@ for (i in 1) {
   
   pcNm <- names(qntSun)
 
+  # PEAK STORM FLOWS ---- 
+  qStm <- read.csv('C:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
+  
+  qStm$Date = as.Date(paste0(20, substr(qStm$name, 7, 12)), '%Y%m%d')
+  
+  qStm <- qStm[, c(5, 4, 2)]
+  
+  # qStmSlz <- merge
+  qStmSlz <- merge(qStm[qStm$group == 'qstmsz', ], datDly, by.x = 'Date',
+                   by.y = 'Date', all.x = TRUE, all.y = FALSE)
+  
+  qStmSun <- merge(qStm[qStm$group == 'qstmsn', ], datDly, by.x = 'Date',
+                   by.y = 'Date', all.x = TRUE, all.y = FALSE)
+
   # PLOT TIME SERIES ----
   slzPlot = ggplot(data = datDly) +
     geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
     geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
+    geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
+               color = 'darkblue') + 
+    geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
+               color = 'darkred') + 
     scale_y_log10(limits = c(1, 50000), labels = comma) +
     xlab("Day of the year") + ylab("Flow (cfs)") +
     facet_wrap(~ HY, ncol = 3) + 
@@ -171,10 +196,14 @@ for (i in 1) {
     annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) + 
     annotate("text", 330, qntSlz[4], label = pcNm[4], vjust = 0, size = 3.0) + 
     annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
-  
+
   sunPlot = ggplot(data = datDly) +
     geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
     geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
+    geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
+               color = 'darkblue') + 
+    geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
+               color = 'darkred') + 
     scale_y_log10(limits = c(0.1, 5000), labels = comma) +
     xlab("Date") + ylab("Flow (cfs)") +
     facet_wrap(~ HY, ncol = 3) + 
@@ -190,45 +219,43 @@ for (i in 1) {
     annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
   
   ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
-         path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')  
+         path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')  
   
   ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
-         path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')  
+         path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')  
     
   # CALIBRATION COMPONENTS ----
   # TIME (MATCHING) DEPENDENT:
+  
   # - Mean Daily NSE      (12 * 365 = 4382 observations)
-  # THIS ONE____________________________________________________________________
   dayNSESlz <- round(NSE(datDly$qSlz_M,datDly$qSlz_G,
                          na.rm = TRUE, FUN = log), 3) 
   
   dayNSESun <- round(NSE(datDly$qSun_M, datDly$qSun_G,
                          na.rm = TRUE, FUN = log), 3)
-  # THIS ONE____________________________________________________________________
-  
-  # PLOT SCATTER AND REGRESSION ??? MAYBE LATER
-  
+
   # - Monthly NSE         (12 *  12 =  144 observations)
-  # THIS ONE____________________________________________________________________
   mntNSESlz <- round(NSE(datMnt$qSlz_M, datMnt$qSlz_G,
                          na.rm = TRUE, FUN = NULL), 3)
   
   mntNSESun <- round(NSE(datMnt$qSun_M, datMnt$qSun_G,
                          na.rm = TRUE, FUN = NULL), 3)
-  # THIS ONE____________________________________________________________________
+
+  # - Peak Storm Flows (2 x 150 = 300 observations)
+  stmNSESlz <- round(NSE(qStmSlz$qSlz_M, qStmSlz$qSlz_G,
+                         na.rm = TRUE, FUN = log), 3)
   
-  # PLOT SCATTER AND REGRESSION ??? MAYBE LATER
+  stmNSESun <- round(NSE(qStmSun$qSun_M, qStmSun$qSun_G,
+                         na.rm = TRUE, FUN = log), 3)
   
   # TIME INDEPENDENT:
   # - Flow duration curve
-  # THIS ONE____________________________________________________________________
-  fdcRMSESlz = round(calib_FDC(datDly$qSlz_G,
-                               datDly$qSlz_M, pltPath, 'slz', n), 3)
+  fdcNSESlz = round(calib_FDC(datDly$qSlz_G, datDly$qSlz_M,
+                              pltPath, 'slz', n), 3)
   
-  fdcRMSESun = round(calib_FDC(datDly$qSun_G, 
-                               datDly$qSun_M, pltPath, 'sun', n), 3)
-  # THIS ONE____________________________________________________________________
-  
+  fdcNSESun = round(calib_FDC(datDly$qSun_G, datDly$qSun_M, 
+                              pltPath, 'sun', n), 3)
+
   # - Annual volume error
   datYrl <- aggregate(datMnt[, 2 : 5], by = list(datMnt$HY), sum, na.rm = FALSE)
   
@@ -236,19 +263,19 @@ for (i in 1) {
   
   colnames(datYrl)[1] <- 'Date'
   
-  datYrl$SZErr <- round(100 * (datYrl$qSlz_M - datYrl$qSlz_G) / datYrl$qSlz_G, 1)
+  datYrl$SZErr <- round(100 * (datYrl$qSlz_M - datYrl$qSlz_G) /
+                               datYrl$qSlz_G, 1)
   
-  datYrl$SnErr <- round(100 * (datYrl$qSun_M - datYrl$qSun_G) / datYrl$qSun_G, 1)
+  datYrl$SnErr <- round(100 * (datYrl$qSun_M - datYrl$qSun_G) /
+                               datYrl$qSun_G, 1)
   
   # Total Percent BIAS (PBIAS)
   volTotal <- colSums(datYrl[, 2 : 5], na.rm = TRUE)
   
-  # THIS ONE____________________________________________________________________
   pBallSlz <- round(100 * (volTotal[2] - volTotal[1]) / volTotal[1], 1)
   
   pBallSun <- round(100 * (volTotal[4] - volTotal[3]) / volTotal[3], 1)
-  # THIS ONE____________________________________________________________________
-  
+
   # - Dry season volume error (July - Sept)
   datDry <- datMnt[datMnt$MN %in% c(7, 8, 9), ]
   
@@ -256,12 +283,10 @@ for (i in 1) {
   
   dryTotal <- colSums(datDry[, 2 : 5], na.rm = TRUE)
   
-  # THIS ONE____________________________________________________________________
   pBDrySlz <- round(100 * (dryTotal[2] - dryTotal[1]) / volTotal[1], 1)
   
   pBDrySun <- round(100 * (dryTotal[4] - dryTotal[3]) / dryTotal[3], 1)
-  # THIS ONE____________________________________________________________________
-  
+
   # Storm (Upper 10% flows)
   datStrSlz <- datDly[datDly$qSlz_G >= qntSlz[5], c(1 : 3)]
   
@@ -278,21 +303,21 @@ for (i in 1) {
   
   volStrSun <- colSums(datStrSun[, 2 : 3], na.rm = TRUE)
   
-  # THIS ONE____________________________________________________________________
   pBStrSlz <- round(100 * (volStrSlz[2] - volStrSlz[1]) / volStrSlz[1], 2)
     
   pBStrSun <- round(100 * (volStrSun[2] - volStrSun[1]) / volStrSun[1], 2)
-  # THIS ONE____________________________________________________________________
 
   calSttOut <- data.frame('dNSESz' = dayNSESlz,
                           'mNSESz' = mntNSESlz,
-                          'FDCSz' = fdcRMSESlz,
+                          'sNSESz' = stmNSESlz,
+                          'FDCSz' = fdcNSESlz,
                           'PBSz' = pBallSlz,
                           'PBDSz' = pBDrySlz,
                           'PBSSz' = pBStrSlz,
                           'dNSESn' = dayNSESun,
                           'mNSESn' = mntNSESun,
-                          'FDCSn' = fdcRMSESun,
+                          'sNSESn' = stmNSESun,
+                          'FDCSn' = fdcNSESun,
                           'PBSn' = pBallSun, 
                           'PBDSn' = pBDrySun,
                           'PBSSn' = pBStrSun,
@@ -310,5 +335,6 @@ for (i in 1) {
   writeLines(as.character(n), countFil)
   
   close(countFil)
+
 
 }

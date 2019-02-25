@@ -4,6 +4,7 @@
 # Ryan Shojinaga, Water Quality Analyst, NRS3, Oregon DEQ
 # shojinaga.ryan@deq.state.or.us, 503-229-5777
 
+# LIBRARIES AND OPTIONS ----
 suppressMessages(library(tidyverse))
 suppressMessages(library(lubridate))
 suppressMessages(library(reshape2))
@@ -263,9 +264,39 @@ names(tmp) <- c('obsNme', 'value')
 
 modDat <- rbind(modDat, tmp)
 
+# PEAK STORM FLOWS ----
+# Import csv
+qStm <- read.csv('C:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
+
+# Read dates
+qStm$Date <- as.Date(paste0(20, substr(qStm$name, 7, 12)), '%Y%m%d')
+
+# Subset qData for Siletz 
+qStmSlz <- merge(qStm[qStm$group == 'qstmsz', ], qData,
+                 by.x = 'Date', by.y = 'Date', all.x = TRUE, all.y = FALSE)
+
+tmp <- qStmSlz[, c(2, 6)]
+
+names(tmp) <- c('obsNme', 'value')
+
+modDat <- rbind(modDat, tmp)
+
+# Subset qData for Sunshine
+qStmSun <- merge(qStm[qStm$group == 'qstmsn', ], qData,
+                 by.x = 'Date', by.y = 'Date', all.x = TRUE, all.y = FALSE)
+
+tmp <- qStmSun[, c(2, 6)]
+
+names(tmp) <- c('obsNme', 'value')
+
+modDat <- rbind(modDat, tmp)
+
 # TIDY UP DATA AND OUTPUT TO MODEL.OUT ----
 # Find index and name of NAs
 modDat <- modDat[-nas$naInx, ]
+
+# Replace -Inf with 0
+modDat[which(!is.finite(modDat$value)), ] <- 0
 
 modDat$length <- 20 - sapply(modDat$obsNme, nchar) - 1
 
