@@ -1,17 +1,16 @@
-#! C:/Program Files/R/R-3.5.2/bin Rscript
+#! D:/Program Files/R/R-3.5.2/bin Rscript
 
 # FUNCTION TO WRITE MODEL OUTPUT TO PEST OUT FILE
 # Ryan Shojinaga, Water Quality Analyst, NRS3, Oregon DEQ
 # shojinaga.ryan@deq.state.or.us, 503-229-5777
 
 # LIBRARIES AND OPTIONS ----
-suppressMessages(library(tidyverse))
 suppressMessages(library(lubridate))
 suppressMessages(library(reshape2))
 
 options(warn = -1)
 
-filPath <- 'C:/siletz/'
+filPath <- 'D:/siletz/'
 
 # Read the counter
 countFil = file(paste0(filPath, 'count.txt'))
@@ -25,12 +24,12 @@ modDat <- data.frame(obsNme = as.character(),
                      stringsAsFactors = FALSE)
 
 # Load flow data and NA indeces
-qData <- read.csv('C:/siletz/calib/qmod.csv', stringsAsFactors = FALSE)
+qData <- read.csv('D:/siletz/calib/qmod.csv', stringsAsFactors = FALSE)
 
 qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
                          tz = 'America/Los_Angeles')
 
-nas <- read.csv('C:/siletz/pest/nas.csv', stringsAsFactors = FALSE)
+nas <- read.csv('D:/siletz/pest/nas.csv', stringsAsFactors = FALSE)
 
 # Remove the last entry (2017-10-01 00:00)
 qData <- qData[-nrow(qData), ]
@@ -51,7 +50,7 @@ qData <- qData[, c(1, 3, 2)]
 names(qData) <- c('Date', 'qSlz', 'qSun')
 
 # Make model data NAs from gage data NAs
-dlyNA <- read.csv('C:/siletz/pest/dlyNA.csv', stringsAsFactors = FALSE)
+dlyNA <- read.csv('D:/siletz/pest/dlyNA.csv', stringsAsFactors = FALSE)
 
 gage <- c('Slz', 'Sun')
 
@@ -266,7 +265,7 @@ modDat <- rbind(modDat, tmp)
 
 # PEAK STORM FLOWS ----
 # Import csv
-qStm <- read.csv('C:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
+qStm <- read.csv('D:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
 
 # Read dates
 qStm$Date <- as.Date(paste0(20, substr(qStm$name, 7, 12)), '%Y%m%d')
@@ -308,10 +307,10 @@ modDat$prelen <- sapply(modDat$pre, nchar)
 
 modDat$line <- paste0(' ', modDat$obsNme, modDat$pre, modDat$value)
 
-write.table(modDat$line, 'C:/siletz/model.out', row.names = FALSE,
+write.table(modDat$line, 'D:/siletz/model.out', row.names = FALSE,
             col.names = FALSE, quote = FALSE)
 
-source('C:/siletz/scripts/R/move_hspf_files.R')
+source('D:/siletz/scripts/R/move_hspf_files.R')
 
 # Move the output files to storage folders
 move_hspf_files(filPath, n)

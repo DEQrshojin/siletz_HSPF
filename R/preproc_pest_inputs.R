@@ -4,7 +4,7 @@ for (i in 1) {
                    'Big-Elk-Cadmus-HydCal-Updated-WDM/pest-hspf-files/',
                    'pred-base-pre-cal/temp.pst')
   
-  source('C:/siletz/scripts/R/analyze_bec_objfun.R')
+  source('D:/siletz/scripts/R/analyze_bec_objfun.R')
   
   regs <- analyze_bec_objfun(pstFil)
   
@@ -12,7 +12,7 @@ for (i in 1) {
   
   regs[['weights']]$pct <- 100 * (regs[['weights']]$x / totalWeight)
   
-  library(tidyverse)
+  # library(tidyverse)
   library(lubridate)
   
   # Create data frame for pest control file observation data
@@ -23,7 +23,7 @@ for (i in 1) {
                        stringsAsFactors = FALSE)
   
   # MEAN DAILY FLOW - qdaysz & qdaysn ----
-  qData <- read.csv('C:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
+  qData <- read.csv('D:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
   # OUTPUT GAGE NA DATA FILE FOR MODEL DATA AUDITING
   dlyNA <- data.frame(date = as.character(),
@@ -46,7 +46,7 @@ for (i in 1) {
     
   }
   
-  # write.csv(dlyNA, 'C:/siletz/pest/dlyNA.csv', row.names = FALSE)
+  write.csv(dlyNA, 'D:/siletz/pest/dlyNA.csv', row.names = FALSE)
   
   # Set date values
   qData$Mn <- month(qData$Date)
@@ -313,7 +313,7 @@ for (i in 1) {
   obsDat <- rbind(obsDat, tmp)
   
   # PEAK STORM FLOWS - qstmsz & qstmsn ----
-  qStm <- read.csv("C:/siletz/pest/stmObs.csv", stringsAsFactors = FALSE)
+  qStm <- read.csv("D:/siletz/pest/stmObs.csv", stringsAsFactors = FALSE)
   
   names(qStm) <- c('obsNme', 'value', 'weigth', 'obsgrp')
   
@@ -328,9 +328,9 @@ for (i in 1) {
   obsDat <- obsDat[-nas$naInx, ]
   
   # Write to csv
-  write.csv(obsDat, 'C:/siletz/pest/pest_obsdat.csv', row.names = FALSE)
+  write.csv(obsDat, 'D:/siletz/pest/pest_obsdat.csv', row.names = FALSE)
   
-  # write.csv(nas, 'C:/siletz/nas.csv', row.names = FALSE)
+  write.csv(nas, 'D:/siletz/nas.csv', row.names = FALSE)
 
 }
 

@@ -16,7 +16,13 @@ def proc_hspf_results(n):
 
     wdm.open(wdmFile, 'r')
 
-    dsns = [3, 11]
+    # Get output information from the out.wdm file
+    dsns = wdm.get_datasets(wdmFile) # All data sets from the WDM
+    # dsns = [3, 11] # Hydrology - Sunshine Creek and Siletz River at USGS
+    
+    idcons = [wdm.get_attribute(wdmFile, n, 'IDCONS') for n in dsns]
+
+    staids = [wdm.get_attribute(wdmFile, n, 'STAID ') for n in dsns]
 
     # INITIALIZE THE OUTPUT DATAFRAME INCLUDING THE DATE/TIME
     start = datetime.datetime(2004, 1, 1)
@@ -25,37 +31,31 @@ def proc_hspf_results(n):
 
     dttm = [start + t * datetime.timedelta(hours = 1)
             for t in range(int((end - start).total_seconds() / 3600))]
+        
+    dctOut = {'Date': dttm}
 
-    datOut = [dttm]
-
-    datNms = ['Date']
+    j = 0
 
     # EXTRACT MODELED FLOWS FROM WDM OUTPUT FILE AND COMPARE TO 
-    for i in dsns:
+    for i in range(1, len(dsns) + 1):
 
-        tmpNme = 'BAS_' + str(i)
-
-        datNms.append(tmpNme)
+        tmpNme = 'BAS_' + staids[j] + '_' + idcons[j] 
 
         tmpDat = wdm.get_data(wdmFile, i)
 
-        tmpDat = [q * 10**6 * 35.314666721 / (60 * 60) for q in tmpDat]
+        dctOut[tmpNme] = tmpDat
 
-        datOut.append(tmpDat)
+        j += 1
 
     wdm.close(wdmFile)
 
     # COERCE TO DATAFRAME AND WRITE TO FILE
-    data = {'Names': datNms, 'col_2': ['a', 'b', 'c', 'd']}
+    tmp = pd.DataFrame.from_dict(dctOut)
 
-    tmp = pd.DataFrame.from_items(zip(datNms, datOut))
-
-    # Slice the data to remove dates outside of calibration period
     cutStr = datetime.datetime(2004, 10, 1)
 
     cutEnd = datetime.datetime(2017, 10, 1)
-        
+
     dfOut = tmp.loc[(tmp['Date'] >= cutStr) & (tmp['Date'] <= cutEnd), ]
 
-    dfOut.to_csv('calib\\qmod.csv', index = False)
-
+    dfOut.to_csv('calib\\siletz_out_sed.csv', index = False)

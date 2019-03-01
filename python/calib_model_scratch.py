@@ -13,7 +13,7 @@ import csv, os, datetime, numpy, pickle, time
 from pyhspf import HSPFModel, WDMUtil
 
 # READ COUNTER FROM count.csv -- Model run number for calibration
-countFil = open('C:/siletz/count.txt', 'r')
+countFil = open('D:/siletz/count.txt', 'r')
 
 n = int(countFil.readline())
 
@@ -23,7 +23,7 @@ countFil.close()
 modelNames = ['siletz', 'siletz' + str(n)]
 
 # Source the functions modify_parameters, run_model, and proc_results
-pyPath = 'C:/siletz/scripts/python/'
+pyPath = 'D:/siletz/scripts/python/'
 
 exec(open(pyPath + 'modify_parameters.py').read())
 
@@ -32,8 +32,6 @@ exec(open(pyPath + 'run_siletz_model.py').read())
 exec(open(pyPath + 'proc_hspf_results.py').read())
 
 # Run the functions (model)
-start = time.time()
-
 modify_parameters(modelNames[0], modelNames[1])
 
 run_siletz_model(modelNames[1]) 

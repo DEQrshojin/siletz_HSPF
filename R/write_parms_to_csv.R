@@ -5,10 +5,10 @@
 # WRITE THE PARAMETERS TO THE CSVS ----
 write_parms_to_csv <- function(comp) {
   
-  path <- 'C:/siletz/calib/'
+  path <- 'D:/siletz/calib/'
   
   # Read the counter from file to get the run number ----
-  countFil = file('C:/siletz/count.txt')
+  countFil = file('D:/siletz/count.txt')
   
   n = as.numeric(readLines(countFil))
   
@@ -40,11 +40,11 @@ move_parm_files <- function(n) {
   # SET FILES ----
   aFils <- c('pwat', 'mint', 'lzet', 'rtks')
   
-  bFils <- paste0('C:/siletz/calib/', aFils, '.csv')          # Old names
+  bFils <- paste0('D:/siletz/calib/', aFils, '.csv')          # Old names
   
-  cFils <- paste0('C:/siletz/calib/', aFils, n - 1, '.csv')       # new names 
+  cFils <- paste0('D:/siletz/calib/', aFils, n - 1, '.csv')       # new names 
   
-  dFils <- paste0('C:/siletz/calib/parms/', aFils, n - 1, '.csv') # new locations
+  dFils <- paste0('D:/siletz/calib/parms/', aFils, n - 1, '.csv') # new locations
   
   # RENAME
   for (i in 1 : length(aFils)) {file.rename(bFils[i], cFils[i])}

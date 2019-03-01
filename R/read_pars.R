@@ -2,8 +2,10 @@ read_pars <- function(parFil) {
   
   parm <- strsplit(readLines(parFil), ',')
 
-  # REMOVE COMMENT AND BLANK LINES ----
+  # REMOVE COMMENT, BLANK LINES, AND EMPTY SPACES ----
   parm[grep('#{3}', parm)] <- NULL
+  
+  parm[which(parm == ' ')] <- NULL
   
   parm <- parm[lapply(parm, length) > 0]
   
@@ -13,7 +15,7 @@ read_pars <- function(parFil) {
     names(parm)[i] = parm[[i]][1] 
       
     # Remove the first list item
-    if (parm[[i]][1] == 'HRUS') {
+    if (parm[[i]][1] == 'HRUS' | parm[[i]][1] == 'MON_VARS') {
         
       parm[[i]] <- parm[[i]][2 : length(parm[[i]])]
         
@@ -24,41 +26,44 @@ read_pars <- function(parFil) {
     }
   }
   
-  # MONTHY INTERCEPTION ----
   mnth <- c('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
             'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC')
-  
-  mintInd <- grep('MINT-', names(parm))
-  
-  mintNms <- names(parm)[mintInd]
-  
-  parm[['MINT']] <- data.frame(matrix(data = do.call(rbind, parm[mintInd]),
-                                      nrow = length(mintInd),
-                                      ncol = length(mnth),
-                                      byrow = FALSE,
-                                      dimnames = list(mintNms, mnth)),
-                               stringsAsFactors = FALSE)
-  
-  parm[['MINT']] <- parm[['MINT']] * parm[['MINTmult']]
-  
-  # MONTHY LOWER ZONE ET PARAMETERS ----
-  mlzeInd <- grep('MLZE-', names(parm))
-  
-  mlzeNms <- names(parm)[mlzeInd]
-  
-  parm[['MLZE']] <- data.frame(matrix(data = do.call(rbind, parm[mlzeInd]),
-                                      nrow = length(mlzeInd),
-                                      ncol = length(mnth),
-                                      byrow = FALSE,
-                                      dimnames = list(mlzeNms, mnth)),
-                               stringsAsFactors = FALSE)
-  
-  parm[['MLZE']] <- parm[['MLZE']] * parm[['MLZEmult']]
-  
-  # DELETE THE MINT AND MLZE INTERIMS ----
-  parm[grep('MINT-|MLZE-|MINTm|MLZEm', names(parm))] <- NULL
-  
+
+  # MONTHY VALUES
+  for (par in parm[['MON_VARS']]) {
+    
+    parm <- monthly_pars(parm, par, mnth)  
+    
+  }
+
   return(parm)
 
 }
 
+monthly_pars <- function(parm, prNm, mnth) {
+
+  # Find multiplier index
+  mltInd <- grep(paste0(prNm, 'mult'), names(parm))
+  
+  # Find HRU-specific lines
+  hruInd <- grep(paste0(prNm, '-'), names(parm))
+  
+  prmNms <- names(parm)[hruInd]
+  
+  # Create data frame item for the parm list
+  parm[[prNm]] <- data.frame(matrix(data = do.call(rbind, parm[hruInd]),
+                                      nrow = length(hruInd),
+                                      ncol = length(mnth),
+                                      byrow = FALSE,
+                                      dimnames = list(prmNms, mnth)),
+                               stringsAsFactors = FALSE)
+  
+  parm[[prNm]] <- parm[[prNm]] * parm[[mltInd]]
+  
+  delLst <- paste0(prNm, '-|', prNm, 'm')
+  
+  parm[grep(delLst, names(parm))] <- NULL
+  
+  return(parm)
+
+}

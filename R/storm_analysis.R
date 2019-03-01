@@ -2,7 +2,7 @@
 library(ggplot2)
 library(lubridate)
 
-qData <- read.csv('C:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
+qData <- read.csv('d:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
 
 qData$Date <- as.Date(qData$Date, '%Y-%m-%d')
 
@@ -23,7 +23,7 @@ pltSlz <- ggplot(data = qSlz, aes(x = doy, y = q), group = hy) + geom_line() +
           geom_point(data = slzStm, aes(x = doy, y = q), size = 2, color = 2) +
           scale_y_log10() + facet_wrap(~hy, ncol = 3)
 
-ggsave('selected_storms_siletz.png', plot = pltSlz, path = 'C:/siletz/calib',
+ggsave('selected_storms_siletz.png', plot = pltSlz, path = 'd:/siletz/calib',
        width = 15, height = 10, units = 'in', dpi = 300)
 
 # SELECTED STORMS FOR SUNSHINE ----
@@ -39,7 +39,7 @@ pltSun <- ggplot(data = qSun, aes(x = doy, y = q), group = hy) + geom_line() +
   geom_point(data = sunStm, aes(x = doy, y = q), size = 2, color = 2) +
   scale_y_log10() + facet_wrap(~hy, ncol = 3)
 
-ggsave('selected_storms_sunshine.png', plot = pltSun, path = 'C:/siletz/calib',
+ggsave('selected_storms_sunshine.png', plot = pltSun, path = 'd:/siletz/calib',
        width = 15, height = 10, units = 'in', dpi = 300)
 
 # output to csv ----
@@ -72,7 +72,7 @@ dfOut <- rbind(slzStm, sunStm)
 dfOut <- dfOut[, c(5, 2, 6, 7)]
 
 # output to csv
-write.csv(dfOut, file = 'C:/siletz/pest/stmObs.csv', quote = FALSE,
+write.csv(dfOut, file = 'd:/siletz/pest/stmObs.csv', quote = FALSE,
           row.names = FALSE)
 
 # Auxillary functions ----

@@ -7,7 +7,7 @@
 # Lampert, David. (2015). PyHSPF: Data integration software for hydrologic and
 #   water quality modeling. 
 
-import os, csv, pickle, datetime
+import os, csv, pickle, datetime, math
 import pandas as pd
 import shapefile
 from pyhspf import Subbasin, Watershed, HSPFModel, WDMUtil
@@ -22,17 +22,17 @@ tstep = 60
 lc_codes = ['FORLO', 'FORHI', 'DEVLO', 'DEVHI', 'GRSLO',
             'GRSHI', 'CULLO', 'CULHI', 'IMPRV']
 
-wdmFile = 'C:/siletz/siletz_in.wdm'
+wdmFile = 'D:/siletz/siletz_in.wdm'
 
-mssgpath = 'C:/siletz/hspfmsg.wdm'
+mssgpath = 'D:/siletz/hspfmsg.wdm'
 
 # Source functions
-exec(open('C:/siletz/scripts/python/build_watershed_functions.py').read())
+exec(open('D:/siletz/scripts/python/build_watershed_functions.py').read())
 
-exec(open('C:/siletz/scripts/python/wdm_functions.py').read())
+exec(open('D:/siletz/scripts/python/wdm_functions.py').read())
 
 # READ IN LAND COVER DATA
-with open('C:/siletz/inputs/hru.csv') as hruFile:
+with open('D:/siletz/inputs/hru.csv') as hruFile:
     
     readTables = csv.reader(hruFile, delimiter = ',')
     
@@ -55,12 +55,12 @@ for i in hru_df:
 ifraction = 1.
 
 # Read and input the FTables
-fTables = read_ftables('C:/siletz/inputs/ftab.csv')
+fTables = read_ftables('D:/siletz/inputs/ftab.csv')
 
 # READ IN BASIN, REACH AND OUTLET SHAPEFILES
-basinShp = shapefile.Reader('C:/siletz/inputs/shp/basins.shp')
+basinShp = shapefile.Reader('D:/siletz/inputs/shp/basins.shp')
 
-reachShp = shapefile.Reader('C:/siletz/inputs/shp/reaches.shp')
+reachShp = shapefile.Reader('D:/siletz/inputs/shp/reaches.shp')
 
 basinRecords = basinShp.records()
 
@@ -107,15 +107,15 @@ hspfmodel.build_from_watershed(watershedSiletz,
 watershedSiletz.plot_mass_flow(output = 'siletz_network')
 
 # ADD TIME SERIES DATA: PRECIP, PET, and FLOW TO THE WDM FILE
-pcpData = pd.read_csv('C:/siletz/inputs/pcp.csv')
+pcpData = pd.read_csv('D:/siletz/inputs/pcp.csv')
 
-petData = pd.read_csv('C:/siletz/inputs/pet.csv')
+petData = pd.read_csv('D:/siletz/inputs/pet.csv')
     
 ts_to_wdmFile(wdmFile = wdmFile,
               pcpData = pcpData,
               petData = petData)
 
-# See if you can read the data from the WDM file
+# Read the data from the WDM file
 wdm = WDMUtil(verbose = True, messagepath = mssgpath)
 
 # ADD BASIN TIMESERIES FROM THE WDM TO HSPFMODEL
@@ -155,7 +155,9 @@ wdm.close(wdmFile)
 # COMPLETE AND EXECUTE MODEL
 hspfmodel.add_hydrology()
 
-with open('C:/siletz/siletz', 'wb') as f: pickle.dump(hspfmodel, f)
+hspfmodel.add_sediment()
+
+with open('D:/siletz/siletz', 'wb') as f: pickle.dump(hspfmodel, f)
 
 print('\nsuccessfully created the HSPF model of the Siletz River."\n')
 

@@ -7,7 +7,7 @@
 # Lampert, David. (2015). PyHSPF: Data integration software for hydrologic and
 #   water quality modeling. 
 
-# FUNCTION TO CREATE SUBBASINS AND ADD REACH AND BASIN DATA (EXCEPT LANDUSE)  #
+# FUNCTION TO CREATE SUBBASINS AND ADD REACH AND BASIN DATA (EXCEPT LANDUSE)
 def create_subbasins(basinRecords, reachRecords, year, lc_codes, hru_df, fTables):
 
     subbasins = {}  # Create the basins for populating with characteristics
@@ -35,13 +35,19 @@ def create_subbasins(basinRecords, reachRecords, year, lc_codes, hru_df, fTables
         
         slopelen = reachRecords[basin][5] / 1000
 
+        Qm3s = reachRecords[basin][11]
+
+        Vmps = reachRecords[basin][12]
+
         # Add the subbasin, reach to the model
         subbasin = Subbasin(number) # Creates the 'basin' instance of subbasin
         
         subbasin.add_flowplane(length, planeslope, centroid, elev)
         
         subbasin.add_reach(name, maxelev, minelev, slopelen,
-                           ftable = fTables[basin])
+                           ftable = fTables[basin],
+                           flow = Qm3s,
+                           velocity = Vmps)
         
         subbasin.add_landuse(year, lc_codes, hru_df[basin])
 
