@@ -33,12 +33,18 @@ write_parms_to_csv <- function(comp) {
   write.csv(comp[['mtrx']][['rtks']], file = paste0(path, 'rtks.csv'),
             row.names = FALSE)
   
+  write.csv(comp[['mtrx']][['sprp']], file = paste0(path, 'sprp.csv'),
+            row.names = FALSE)
+  
+  write.csv(comp[['mtrx']][['sprr']], file = paste0(path, 'sprr.csv'),
+            row.names = FALSE)
+  
 }
 
 move_parm_files <- function(n) {
   
   # SET FILES ----
-  aFils <- c('pwat', 'mint', 'lzet', 'rtks')
+  aFils <- c('pwat', 'mint', 'lzet', 'rtks', 'sprp', 'sprr')
   
   bFils <- paste0('D:/siletz/calib/', aFils, '.csv')          # Old names
   

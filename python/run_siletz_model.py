@@ -11,13 +11,14 @@ def run_siletz_model(modelName):
     with open(modelName, 'rb') as f: hspfmodel = pickle.load(f)
 
     # WDM Output targets
-    targets = ['reach_flow',
-               'reach_tss',                # SSed - Sed concentration (mg/L)
-               'reach_total_sediment',]     # RSed  - Sed storage (tonne)
-#               'reach_sediment_out',]      # ROSe- Sed outflow (tonne/ts)
-#     
-#     targets = ['runoff',]                  # SURO, IFWO, AGWO - Runoff (mm/ts)
-#     targets = ['reach_flow']               # RO - Reach outflow (m3/s)
+    # targets = ['reach_flow',
+    #          'reach_tss',                # SSed - Sed concentration (mg/L)
+    #          'reach_total_sediment',]    # RSed  - Sed storage (tonne)
+    #          'reach_sediment_out',]      # ROSe- Sed outflow (tonne/ts)
+    targets = ['runoff', ]       # RO - Reach outflow (m3/s)
+    # targets = ['perlnd_runoff']
+    # targets = ['reach_volume',
+    #            'reach_flow']
 
     hspfmodel.messagepath = 'D:/siletz/hspfmsg.wdm'
 

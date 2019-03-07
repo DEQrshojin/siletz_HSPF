@@ -18,7 +18,9 @@ def modify_parameters(modelInName, modelOutName):
     csvFiles = ['\\calib\\pwat.csv',
                 '\\calib\\mint.csv',
                 '\\calib\\lzet.csv',
-                '\\calib\\rtks.csv']
+                '\\calib\\rtks.csv',
+                '\\calib\\sprp.csv',
+                '\\calib\\sprr.csv']
 
     modPars = []
 
@@ -58,46 +60,46 @@ def modify_parameters(modelInName, modelOutName):
 
         # PERLND SEDIMENT
         # SED-PARM1, General flags
-        hspfmodel.perlnds[i].set_sed_parm1(CRV = 1, VSIS = 0, SDOP = 1)
+        hspfmodel.perlnds[i].set_sed_parm1(CRV = 0, VSIV = 0, SDOP = 1)
         # SED-PARM2, Sediment transport
-        hspfmodel.perlnds[i].KRER       = 0.150         # Soil detachment coeff
-        hspfmodel.perlnds[i].JRER       = 2.000         # Soil detachment expon
-        hspfmodel.perlnds[i].AFFIX      = 0.070         # Daily detached sed -
+        hspfmodel.perlnds[i].KRER       = modPars[4][i][0] # Soil detach coeff
+        hspfmodel.perlnds[i].JRER       = modPars[4][i][1] # Soil detach expon
+        hspfmodel.perlnds[i].AFFIX      = modPars[4][i][2] # Daily detach sed
+        hspfmodel.perlnds[i].COVER      = modPars[4][i][3] # Daily detach sed
         # SED-PARM3, Sediment transport
-        hspfmodel.perlnds[i].KSER       = 1.100         # Sed washoff coeff
-        hspfmodel.perlnds[i].JSER       = 2.000         # Sed washoff expnt
+        hspfmodel.perlnds[i].KSER       = modPars[4][i][4] # Sed washoff coeff
+        hspfmodel.perlnds[i].JSER       = modPars[4][i][5] # Sed washoff expnt
         # SED-STOR, Sediment initial value of detached sediment
-        hspfmodel.perlnds[i].DETS       = 0.100         # Sed store init
+        hspfmodel.perlnds[i].DETS       = modPars[4][i][6] # Sed store init
         # FIXED VALUES --------------------------------------------------------
-        hspfmodel.perlnds[i].NVSI       = 0.000         # Sed deposition rate
-        hspfmodel.perlnds[i].KGER       = 0.000         # Soil scour coeff
-        hspfmodel.perlnds[i].JGER       = 1.000         # Soil scour expnt
+        hspfmodel.perlnds[i].NVSI       = 0.000 # Sed deposit rate
+        hspfmodel.perlnds[i].KGER       = 0.000 # Soil scour coeff
+        hspfmodel.perlnds[i].JGER       = 1.000 # Soil scour expnt
         # FIXED VALUES --------------------------------------------------------
 
     # MODIFY PARAMETERS FOR RCHRES HYDR-PARM2 ROUTING PARAMETER Ks
     for i in range(0, len(hspfmodel.rchreses)):
 
-        # Hydraulics
+        # RCHRES Hydraulics
         hspfmodel.rchreses[i].KS = modPars[3][i][0]
         
-        # Sediment
-        hspfmodel.rchreses[i].DB50      = 0.010         # Particle size D50   
-        hspfmodel.rchreses[i].POR       = 0.200         # Substrate porosity
-
+        # RCHRES Sediment
+        hspfmodel.rchreses[i].DB50      = modPars[5][i][0] # Particle size D50   
+        hspfmodel.rchreses[i].POR       = modPars[5][i][1] # Substrate porosity
         # Sand characteristics
-        hspfmodel.rchreses[i].Wsand     = 0.500         # Fall velocity
-        hspfmodel.rchreses[i].KSAND     = 0.100         # Sandload coefficient
-        hspfmodel.rchreses[i].EXPSND    = 2.000         # Sandload exponent
+        hspfmodel.rchreses[i].Wsand     = modPars[5][i][2] # Fall velocity
+        hspfmodel.rchreses[i].KSAND     = modPars[5][i][3] # Sandload coefficient
+        hspfmodel.rchreses[i].EXPSND    = modPars[5][i][4] # Sandload exponent
         # Silt characteristics
-        hspfmodel.rchreses[i].Wsilt     = W      # Fall velocity (mm/s)
-        hspfmodel.rchreses[i].TAUCDsilt = TAUCD  # Critical depos shear (kg/m2)
-        hspfmodel.rchreses[i].TAUCSsilt = TAUCS  # Critical scour shear (kg/m2)
-        hspfmodel.rchreses[i].Msilt     = M      # Silt erobability (kg/m2/day)
+        hspfmodel.rchreses[i].Wsilt     = modPars[5][i][5] # Fall velocity (mm/s)
+        hspfmodel.rchreses[i].TAUCDsilt = modPars[5][i][6] # Critical depos shear (kg/m2)
+        hspfmodel.rchreses[i].TAUCSsilt = modPars[5][i][7] # Critical scour shear (kg/m2)
+        hspfmodel.rchreses[i].Msilt     = modPars[5][i][8] # Silt erobability (kg/m2/day)
         # Clay characteristics
-        hspfmodel.rchreses[i].Wclay     = W      # Fall velocity (mm/s)
-        hspfmodel.rchreses[i].TAUCDclay = TAUCD  # Critical depos shear (kg/m2)
-        hspfmodel.rchreses[i].TAUCSclay = TAUCS  # Critical scour shear (kg/m2)
-        hspfmodel.rchreses[i].Mclay     = M      # Clay erobability (kg/m2/day)
+        hspfmodel.rchreses[i].Wclay     = modPars[5][i][9] # Fall velocity (mm/s)
+        hspfmodel.rchreses[i].TAUCDclay = modPars[5][i][10] # Critical depos shear (kg/m2)
+        hspfmodel.rchreses[i].TAUCSclay = modPars[5][i][11] # Critical scour shear (kg/m2)
+        hspfmodel.rchreses[i].Mclay     = modPars[5][i][12] # Clay erobability (kg/m2/day)
         # FIXED VALUES --------------------------------------------------------
         # Sediment characteristics
         hspfmodel.rchreses[i].Dsand     = 0.250      # Diameter (mm)

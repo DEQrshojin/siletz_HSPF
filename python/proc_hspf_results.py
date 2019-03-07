@@ -37,11 +37,13 @@ def proc_hspf_results(n):
     j = 0
 
     # EXTRACT MODELED FLOWS FROM WDM OUTPUT FILE AND COMPARE TO 
-    for i in range(1, len(dsns) + 1):
+    for i in range(0, len(dsns)):
 
-        tmpNme = 'BAS_' + staids[j] + '_' + idcons[j] 
+        tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
 
-        tmpDat = wdm.get_data(wdmFile, i)
+        tmpNme = 'PRLN' + str(dsns[i])
+
+        tmpDat = wdm.get_data(wdmFile, i + 1)
 
         dctOut[tmpNme] = tmpDat
 
@@ -52,10 +54,12 @@ def proc_hspf_results(n):
     # COERCE TO DATAFRAME AND WRITE TO FILE
     tmp = pd.DataFrame.from_dict(dctOut)
 
-    cutStr = datetime.datetime(2004, 10, 1)
+    # cutStr = datetime.datetime(2004, 1, 1)
 
-    cutEnd = datetime.datetime(2017, 10, 1)
+    # cutEnd = datetime.datetime(2018, 4, 1)
 
-    dfOut = tmp.loc[(tmp['Date'] >= cutStr) & (tmp['Date'] <= cutEnd), ]
+    # dfOut = tmp.loc[(tmp['Date'] >= cutStr) & (tmp['Date'] <= cutEnd), ]
 
-    dfOut.to_csv('calib\\siletz_out_sed.csv', index = False)
+    # dfOut.to_csv('calib\\siletz_perlnd_runoff_names.csv', index = False)
+
+    tmp.to_csv('calib\\wq\\siletz_out_runoff.csv', index = False)

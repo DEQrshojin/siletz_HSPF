@@ -44,7 +44,13 @@ for (i in 1) {
   n = as.numeric(readLines(countFil))  
   
   # LOAD, MERGE, AND PROCESS DATA ----
-  qData <- read.csv('D:/siletz/calib/qmod.csv', stringsAsFactors = FALSE)
+  qData <- read.csv('D:/siletz/calib/siletz_out_sed.csv',
+                    stringsAsFactors = FALSE)
+  
+  qData <- qData[, c(1, 12, 4)]
+  
+  # Convert m3/s to cfs
+  qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
 
   qGage <- read.csv('D:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
@@ -55,8 +61,6 @@ for (i in 1) {
   
   calDat <- merge(ts, qData, by.x = 'Date', by.y = 'Date', all.x = TRUE,
                   all.y = FALSE)
-  
-  calDat <- calDat[, c(1, 3, 2)]
   
   names(calDat) <- c('Datetime', 'qSlz_M', 'qSun_M')
   
@@ -337,3 +341,4 @@ for (i in 1) {
   close(countFil)
 
 }
+  

@@ -7,21 +7,39 @@ populate_parms <- function(parm, comp) {
   c <- grep('pwat', names(comp[['mtrx']])) # pwat matrix indeces
   d <- grep('mint', names(comp[['mtrx']])) # mon intercep matrix indeces
   e <- grep('mlze', names(comp[['mtrx']])) # mon lz et matrix indeces
+  f <- grep('sprp', names(comp[['mtrx']])) # perlnd sediment parameters
+  g <- grep('sprr', names(comp[['mtrx']])) # rchres sediment parameters
   aa <- which(names(parm) == 'MINT')       # Monthly MINT parameter index
   bb <- which(names(parm) == 'MINTapp')    # MINT application indeces
   cc <- which(names(parm) == 'MLZE')       # Monthly MLZE parameter index
   dd <- which(names(parm) == 'MLZEapp')    # MLZE application indeces
 
-  # POPULATE THE PWAT-PARMS FOR SCALARS ----
-  comp[[a]][[c]]$LZSN <- parm[['LZSN']]
-  comp[[a]][[c]]$LSUR <- parm[['LSUR']]
-  comp[[a]][[c]]$AGWR <- parm[['AGWR']]
-  comp[[a]][[c]]$DPFR <- parm[['DPFR']]
-  comp[[a]][[c]]$BSFR <- parm[['BSFR']]
-  comp[[a]][[c]]$AGWE <- parm[['AGWE']]
-  comp[[a]][[c]]$INTR <- parm[['INTR']]
+  # POPULATE THE PWAT-PARMS & SEDIMENT FOR GLOBAL SCALARS ----
+  glbP <- names(comp[[a]][[c]])
+  
+  glsp <- names(comp[[a]][[f]])
+  
+  glsr <- names(comp[[a]][[g]])
 
-  # POPULATE INFILTRATION, INTERFLOW AND UZ STORAGE FOR EACH HRU ----
+  for (n in 1 : length(glbP)) { # GLOBAL PWAT-PARMS
+    
+    if (glbP[n] != 'INFL' & glbP[n] != 'UZSN' & glbP[n] != 'INFW') {
+    
+      comp[[a]][[c]][, n] <- parm[[glbP[n]]]
+    
+    }
+  }
+
+  if (parm[['SDSW']] == 1) { # GLOBAL SED-PARMS
+    
+    for (n in 1 : length(glsp)) {
+        
+      if (glsp[n] != 'COVR') {comp[[a]][[f]][, n] <- parm[[glsp[n]]]}
+      
+    }
+  }
+
+  # POPULATE HRU-SPECIFIC PARAMETERS ----
   # pwat of matrix with indeces for each hru = parameter with index of that HRU
   hrus <- unique(parm[['HRUS']])
   
@@ -36,6 +54,9 @@ populate_parms <- function(parm, comp) {
     # Interflow inflow parameter
     comp[[a]][[c]][comp[[b]][[hrus[i]]], 9] <- parm[['INFW']][i]
     
+    # Land surface shield
+    comp[[a]][[f]][comp[[b]][[hrus[i]]], 4] <- parm[['COVR']][i]
+    
     # MONTHLY INTERCEPTION -- ALREADY MODIFIED BY MULTIPLIER
     comp[[a]][[d]][comp[[b]][[hrus[i]]], ] <- parm[[aa]][parm[[bb]][i], ]
 
@@ -47,7 +68,16 @@ populate_parms <- function(parm, comp) {
   # POPULATE THE REACH ROUTING (KS) PARAMETER
   comp[["mtrx"]][["rtks"]] <- comp[["mtrx"]][["rtks"]] * parm[["HYKS"]]
   
+  # GLOBAL REACH SEDIMENT PARS
+  if (parm[['SDSW']] == 1) { 
+    
+    for (n in 1 : length(glsr)) {
+      
+      comp[[a]][[g]][, n] <- parm[[glsr[n]]]
+      
+    }
+  }
+  
   return(comp)
 
 }
-

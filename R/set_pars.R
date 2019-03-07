@@ -7,7 +7,7 @@
 for (i in 1) {
   
   # Source the functions ----
-  sapply(paste0('d:/siletz/scripts/R/',
+  sapply(paste0('D:/siletz/scripts/R/',
                 c('initialize_components.R', 'read_pars.R', 'populate_parms.R',
                   'write_parms_to_csv.R')), source)
   
