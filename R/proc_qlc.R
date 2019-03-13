@@ -13,7 +13,8 @@ proc_qlc <- function(emc, parV, qLat, lLat) {
     if(parV == 'HRU') {x <- 1} else if (parV == 'ROC') {x = 2}
     
   }
-  
+
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY BASIN ----------------------------
   if(parV == 'BAS') {
     
     # Initialize basin data frames
@@ -43,7 +44,8 @@ proc_qlc <- function(emc, parV, qLat, lLat) {
       names(latQLC[[j]]) <- c('Date', paste0('Bas', lstB[2 : nrow(lstB), 1]))
       
     }
-    
+
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----------
   } else {
     
     parV = c(parV, 'BAS')

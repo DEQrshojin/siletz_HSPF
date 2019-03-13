@@ -42,7 +42,9 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   # Calculate lateral loads ----
   lLat <- qLat # Initialize the df
   
-  for (i in 2 : length(qLat)) {lLat[, i] <- qLat[, i] * emcdwc[i, 7] * 3.6}
+  cCol <- which(names(emcdwc) == 'conc')
+  
+  for (i in 2 : length(qLat)) {lLat[, i] <- qLat[, i] * emcdwc[i, cCol] * 3.6}
   
   # Separate out flows, loads and concentrations
   qlcLat <- proc_qlc(emc = emcdwc, parV = 'BAS', qLat, lLat) # Basin aggregate
