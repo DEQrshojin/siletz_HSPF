@@ -1,13 +1,13 @@
 run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
                        basFil = NULL) {
-
+  
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE, java.parameters = "-Xmx8g")
-
-  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
-           'D:/siletz/scripts/R/proc_routing.R',
-           'D:/siletz/scripts/R/initialize_QLC_df.R'),
+  
+  sapply(c('C:/siletz/scripts/R/proc_qlc.R', 'C:/siletz/scripts/R/reduce_qlc.R',
+           'C:/siletz/scripts/R/proc_flow_4_wq.R',
+           'C:/siletz/scripts/R/proc_routing.R',
+           'C:/siletz/scripts/R/initialize_QLC_df.R'),
          source)
   
   # Load and process data ----
@@ -107,21 +107,21 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     usb <- lnks[['cBas']][[bsn]] # Upstream basin(s)
     
     if (usb != 0) {ucl <- usb + 1} else {ucl <- 0} # Upstream basin columns
-  
+    
     # Basin instance (vector) of mass inflows - LATERAL
     IMAT[, bcl] <- latL[, bcl]
     
     # Basin instance (vector) of mass inflows - LATERAL + UPSTREAM REACH(ES)
     if (usb != 0) {
-  
+      
       for (k in 1 : length(usb)) IMAT[, bcl] = IMAT[, bcl] + rchL[, ucl[k]]
       
     }
-  
+    
     for (j1 in 2 : nrow(rchQ)) {
-  
+      
       j0 = j1 - 1 # previous time step
-  
+      
       # PAR     PAR           O CONV  Unt1      Unt2  
       xIMAT   = IMAT[j1, bcl]         # kg   -> kg
       xCONCS  = rchC[j0, bcl] * 10^-3 # mg/L -> kg/m3
@@ -129,7 +129,7 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
       xSROVOL = rchS[j0, bcl]         # m3   -> m3
       xVOL    = rchV[j1, bcl]         # m3   -> m3
       xEROVOL = rchE[j1, bcl]         # m3   -> m3
-  
+      
       # CONC = [IMAT + CONCS * (VOLS - SROVOL)] / (VOL + EROVOL); mg/L
       xCONC <- 10^3 * (xIMAT + xCONCS * (xVOLS - xSROVOL)) / (xVOL + xEROVOL)
       
@@ -147,7 +147,7 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   qlcOut <- list(reach_flows = rchQ,
                  reach_loads = rchL,
                  reach_conc  = rchC)
-
+  
   return(qlcOut)
-
+  
 }

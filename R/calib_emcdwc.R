@@ -1,10 +1,24 @@
+options(warn = -1)
+
 library('reshape2')
 library('ggplot2')
+library('lubridate')
+
+# Broad measures:
+# Seasonal loads
+# Total annual loads
+# Annual export rates for HRUs compared to SPARROW data
+# Partioned annual loads (SURO/INFW/AGWO)
+# Partitioned mean concentrations (SURO/INFW/AGWO)
+# Perform for TSS, NOx, TN, PO4, TP, OrgC
+
+# 1. Review WQ data and extract components for all constituents at all sites
+# 2. 
 
 # Load data ----
-rchQLC <- readRDS('D:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
+rchQLC <- readRDS('C:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
 
-wqData <- read.csv('D:/siletz/calib/wq/sediment_STA10391.csv',
+wqData <- read.csv('C:/siletz/calib/wq/sediment_STA10391.csv',
                    stringsAsFactors = FALSE)
 
 # Filter data ----
@@ -61,39 +75,61 @@ names(datM)[5 : 8] = c('CO', 'opr', 'QO', 'LO')
 
 datM <- datM[, c(1, 2, 7, 3, 8, 4, 5, 6)]
 
-datCC <- datM[complete.cases(datM), ]
+# Facet to year
+datM$hy <- datM$dohy <- 0
+
+for (i in 1 : nrow(datM)) {
+  
+  if (month(datM[i, 1]) == 10 & day(datM[i, 1]) == 1) {
+    
+    datM[i, 9] <- 1
+    
+    if (i == 1) {
+      
+      datM[i, 10] <- year(datM[i, 1]) + 1
+      
+    } else {
+      
+      datM[i, 10] <- datM[i - 1, 10] + 1
+      
+    }
+
+  } else {
+    
+    datM[i, 9] <- datM[i - 1, 9] + 1
+    
+    datM[i, 10] <- datM[i - 1, 10]
+    
+  }
+}
 
 plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
 
-pltL <- ggplot(data = datM, aes(x = Date)) +
+pltL <- ggplot(data = datM, aes(x = dohy, group = 1)) +
         geom_line(aes(y = LM), color = 'darkred', size = 1.2) + 
         geom_point(aes(y = LO), size = 2, shape = 23, color = 'darkblue',
                    stroke = 1.2, fill = 'yellow') + 
-        scale_y_log10(labels = plain)
+        scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
 
-ggsave('loads.png', plot = pltL, path = 'D:/siletz/calib/wq', width = 15,
+ggsave('loads.png', plot = pltL, path = 'C:/siletz/calib/wq/plots', width = 15,
        height = 10, units = 'in', dpi = 300)
 
-pltC <- ggplot(data = datM, aes(x = Date)) +
+pltC <- ggplot(data = datM, aes(x = dohy)) +
         geom_line(aes(y = CM), color = 'darkred', size = 1.2) + 
         geom_point(aes(y = CO), size = 2, shape = 23, color = 'darkblue',
                    stroke = 1.2, fill = 'yellow') + 
-        scale_y_log10(labels = plain)
+        scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
 
-ggsave('conc.png', plot = pltC, path = 'D:/siletz/calib/wq', width = 15,
+ggsave('concs.png', plot = pltC, path = 'C:/siletz/calib/wq/plots', width = 15,
        height = 10, units = 'in', dpi = 300)
 
-
-pltQ <- ggplot(data = datM, aes(x = Date)) + 
-  geom_line(aes(y = QM), color = 'darkred', size = 1.2) + 
-  geom_point(aes(y = QO), size = 2, shape = 23, color = 'darkblue',
-             stroke = 1.2, fill = 'yellow') +
-  scale_y_log10(labels = plain)
-
-ggsave('flow.png', plot = pltQ, path = 'D:/siletz/calib/wq', width = 15,
-       height = 10, units = 'in', dpi = 300)
+datCC <- datM[complete.cases(datM), ]
 
 
 
-                                                             
+
+
+
+
+
 

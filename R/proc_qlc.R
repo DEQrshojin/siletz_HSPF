@@ -1,4 +1,4 @@
-proc_qlc <- function(emc, parV, qLat, lLat) {
+proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
   lstB <- data.frame(BAS = unique(emc$BAS))
   
