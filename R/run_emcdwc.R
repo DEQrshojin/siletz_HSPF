@@ -2,42 +2,24 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
                        basFil = NULL) {
   
   # Libraries, scripts and options ----
-  options(stringsAsFactors = FALSE, java.parameters = "-Xmx8g")
+  options(stringsAsFactors = FALSE)
   
-  sapply(c('C:/siletz/scripts/R/proc_qlc.R', 'C:/siletz/scripts/R/reduce_qlc.R',
-           'C:/siletz/scripts/R/proc_flow_4_wq.R',
-           'C:/siletz/scripts/R/proc_routing.R',
-           'C:/siletz/scripts/R/initialize_QLC_df.R'),
-         source)
+  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
+           'D:/siletz/scripts/R/proc_flow_4_wq.R',
+           'D:/siletz/scripts/R/proc_routing.R',
+           'D:/siletz/scripts/R/initialize_QLC_df.R',
+           'D:/siletz/scripts/R/preproc_emcdwc.R'), source)
   
   # Load and process data ----
   qOut <- proc_flow_4_wq(wqDir)
   
-  # Reduce qOut to specified dates 
+  # Reduce from qOut to lateral loads of specified dates 
   qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
-  
-  qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
-  
-  # Load EMC/DWC
-  emcdwcTmp <- read.csv(emcFil)
-  
-  # Set concentrations from emcdwc inputs
-  emcdwc <- data.frame(do.call(rbind, strsplit(names(qOut[['qLat']]), '_')))
-  
-  names(emcdwc) <- c('ROC', 'BAS', 'HRU')
-  
-  emcdwc$indx <- as.numeric(row.names(emcdwc))
-  
-  emcdwc <- merge(emcdwc, emcdwcTmp, by.x = 'HRU', by.y = 'HRU', all.x = TRUE,
-                  all.y = FALSE)
-  
-  # Set the outflow concentration to either EMC (SURO & IFWO) or DWC (AGWO) 
-  emcdwc$conc <- ifelse(emcdwc$ROC == 'AGWO', emcdwc$AGWO,
-                        ifelse(emcdwc$ROC == 'IFWO', emcdwc$IFWO, emcdwc$SURO))
-  
-  emcdwc <- emcdwc[order(emcdwc$indx), ]
-  
-  row.names(emcdwc) <- emcdwc$indx
+
+  # Pre-proces emcdwc table
+  nmVec <- names(qOut[['qLat']])
+
+  emcdwc <- preproc_emcdwc(nmVec = nmVec, emcFil = emcFil)
   
   # Calculate lateral loads ----
   lLat <- qLat # Initialize the df
@@ -48,10 +30,12 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   
   # Separate out flows, loads and concentrations
   qlcLat <- proc_qlc(emc = emcdwc, parV = 'BAS', qLat, lLat) # Basin aggregate
-  
+
   latL <- qlcLat[['load']]
   
   # Process reach flows and volume ----
+  qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
+  
   rchV <- qRch[, c(1, ((length(qRch) - 1) / 2 + 2) : length(qRch))] # Reach Vol 
   
   rchQ <- qRch[, 1 : ((length(qRch) - 1) / 2 + 1)] # Reach outflow

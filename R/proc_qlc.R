@@ -90,9 +90,8 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
       names(latQLC[[j]]) <- paste0('Bas', lstB[2 : nrow(lstB), 1])
       
     }
-    
   }
-  
+
   return(latQLC)
   
 }

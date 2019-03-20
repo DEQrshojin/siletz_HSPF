@@ -1,41 +1,41 @@
+# LIBRARIES, OPTIONS AND FUNCTIONS ----
 options(warn = -1)
 
 library('reshape2')
 library('ggplot2')
 library('lubridate')
 
-# Broad measures:
-# Seasonal loads
-# Total annual loads
-# Annual export rates for HRUs compared to SPARROW data
-# Partioned annual loads (SURO/INFW/AGWO)
-# Partitioned mean concentrations (SURO/INFW/AGWO)
-# Perform for TSS, NOx, TN, PO4, TP, OrgC
+sapply(c('D:/siletz/scripts/R/runoff_components.R',
+         'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R',
+         'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
+         'D:/siletz/scripts/R/ro_comp_analysis.R',
+         'D:/siletz/scripts/R/get_sparrow_loads.R'), source)
 
-# 1. Review WQ data and extract components for all constituents at all sites
-# 2. 
+plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
 
-# Load data ----
-rchQLC <- readRDS('C:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
+# CALIBRATION SPECS ----
+par <- 'TSS' # 'TP', 'PO4', 'NOx', 'OrC'
 
-wqData <- read.csv('C:/siletz/calib/wq/sediment_STA10391.csv',
-                   stringsAsFactors = FALSE)
+stn <- '10391-ORDEQ'
 
-# Filter data ----
-wqData$date <- as.Date(wqData$date, '%Y-%m-%d')
+# LOAD WQ OBS DATA ----
+rchQLC <- readRDS('D:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
 
+qRO <- runoff_components(strD = '2004-10-01', endD = '2017-10-01',
+                         wqDir = 'D:/siletz/calib/wq',
+                         emcFil = 'D:/siletz/emcdwc.csv')
+
+wqDt <- read.csv(paste0('D:/siletz/calib/wq/', par, '_', stn, '.csv'),
+                 stringsAsFactors = FALSE)
+
+wqDt$Date <- as.Date(wqDt$Date, '%Y-%m-%d')
+
+# PROCESS MODEL DATA ----
 basin <- 'Bas14'
 
 col <- which(names(rchQLC$reach_flows) == basin)
 
-# trim observations to dates of model data
-modDts <- as.Date(c(min(rchQLC[[1]]$Date), max(rchQLC[[1]]$Date)),
-                  '%Y-%m-%d %H:%M:%S', tz = 'America/Los_Angeles')
-
-wqData <- wqData[which(wqData$date >= modDts[1] & wqData$date <= modDts[2]), ]
-
-# Model data 2 daily ----
-# model data
+# AGGREGATE MODEL DATA TO DAILY ----
 aggFun <- c('mean', 'sum', 'mean')
 
 dlyQLC <- list()
@@ -69,67 +69,97 @@ datM$LM <- datM$LM / 1000 # Convert from kg to tons (metric)
 datM$QM <- datM$QM * 35.314666213 # Convert flows to cfs
 
 # Merge model and observation data
-datM <- merge(datM, wqData, by.x = 'Date', by.y = 'date', all.x = TRUE)
+datM <- merge(datM, wqDt, by.x = 'Date', by.y = 'Date', all.x = TRUE)
 
-names(datM)[5 : 8] = c('CO', 'opr', 'QO', 'LO')
+names(datM)[5 : 7] = c('CO', 'QO', 'LO')
 
-datM <- datM[, c(1, 2, 7, 3, 8, 4, 5, 6)]
+datM <- datM[, c(1, 2, 6, 3, 7, 4, 5)]
 
-# Facet to year
-datM$hy <- datM$dohy <- 0
+# Calculate hydrologic year and day of hydrologic year
+datM$dohy <- day_of_hydro_year(datM$Date)
 
-for (i in 1 : nrow(datM)) {
-  
-  if (month(datM[i, 1]) == 10 & day(datM[i, 1]) == 1) {
-    
-    datM[i, 9] <- 1
-    
-    if (i == 1) {
-      
-      datM[i, 10] <- year(datM[i, 1]) + 1
-      
-    } else {
-      
-      datM[i, 10] <- datM[i - 1, 10] + 1
-      
-    }
+datM$hy <- hydro_year(datM$Date)
 
-  } else {
-    
-    datM[i, 9] <- datM[i - 1, 9] + 1
-    
-    datM[i, 10] <- datM[i - 1, 10]
-    
-  }
-}
+datM <- datM[-nrow(datM), ]
 
-plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
+# ADD RUNOFF COMPONENTS ----
+roCmp <- ro_comp_analysis(qRO)
 
-pltL <- ggplot(data = datM, aes(x = dohy, group = 1)) +
-        geom_line(aes(y = LM), color = 'darkred', size = 1.2) + 
-        geom_point(aes(y = LO), size = 2, shape = 23, color = 'darkblue',
-                   stroke = 1.2, fill = 'yellow') + 
-        scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
+roCmp <- roCmp[-nrow(roCmp), ]
 
-ggsave('loads.png', plot = pltL, path = 'C:/siletz/calib/wq/plots', width = 15,
-       height = 10, units = 'in', dpi = 300)
+# AGWO, IFWO and SURO thresholds based on giving ~equal distribution in each
+roCmp$ROC <- ifelse(roCmp$SURO >= 0.002, 'SURO', ifelse(roCmp$AGWO >= 0.98,
+                                                        'AGWO', 'IFWO'))
 
-pltC <- ggplot(data = datM, aes(x = dohy)) +
-        geom_line(aes(y = CM), color = 'darkred', size = 1.2) + 
-        geom_point(aes(y = CO), size = 2, shape = 23, color = 'darkblue',
-                   stroke = 1.2, fill = 'yellow') + 
-        scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
+tmp <- roCmp[, c(1, 5)]
 
-ggsave('concs.png', plot = pltC, path = 'C:/siletz/calib/wq/plots', width = 15,
-       height = 10, units = 'in', dpi = 300)
+datM <- merge(datM, tmp, by.x = 'Date', by.y = 'Date', all.x = TRUE,
+              all.y = FALSE)
 
-datCC <- datM[complete.cases(datM), ]
+# CALIBTRATION COMPONENTS ----
+# Add a seasons column 
+datM$Mn <- month(datM$Date)
 
+mnth <- data.frame(Mnth = c(1 : 12),
+                   Seas = c(rep(1, 3), rep(2, 3), rep(3, 3), rep(4, 3)))
 
+datM <- merge(datM, mnth, by.x = 'Mn', by.y = 'Mnth', all.x = T, all.y = T)
 
+# Intialize calibration data frame
+cal <- data.frame(Measure = c('Total load error', 'Winter load error', 
+                              'Spring load error', 'Summer load error',
+                              'Autumn load error', 'Export rate error',
+                              'AGWO conc error', 'IFWO conc error',
+                              'SURO conc error'),
+                  ObsVal = rep(0, 9), ModVal = rep(0, 9), ERROR = rep(0, 9))
 
+# ______________________________________________________________________________
+# Total selected loads comparison
+datMCC <- datM[complete.cases(datM), ]
 
+cal[1, 2 : 4] <- c(round(sum(datMCC$LM), 1), round(sum(datMCC$LO), 1),
+                   round(100 * (sum(datMCC$LO) - sum(datMCC$LM)) / 
+                         sum(datMCC$LO), 2))
 
+# ______________________________________________________________________________
+# Seasonal selected loads comparison
+seaLds <- aggregate(datMCC[, 5 : 6], by = list(datMCC$Seas), FUN = 'sum',
+                    na.rm = T)
 
+cal[2 : 5, 2 : 3] <- seaLds[, 2 : 3]
 
+cal[2 : 5, 4] <- round((100 * (seaLds$LO - seaLds$LM) / seaLds$LO), 2)
+
+# ______________________________________________________________________________
+# Annual export rates for HRUs compared to SPARROW data
+comid <- data.frame(CMID = c(23880860, 23880884),
+                    DESC = c('Siletz at Euchre', 'Siletz at Sam'),
+                    USAR = c(597.09, 504.61))
+
+sprLd <- get_sparrow_loads(comid$CMID, 'TSS')
+
+ojaAr <- 583.13
+
+# Loads in kg/ha/yr
+cal[6, 2] <- (sprLd[2, 2] + (sprLd[1, 2] - sprLd[2, 2]) *
+                            (ojaAr - comid[2, 3]) / 
+                            (comid[1, 3] - comid[2, 3])) / ojaAr / 100 
+
+modLd <- aggregate(datM$LM, by = list(datM$hy), FUN = 'sum')
+
+cal[6, 3] <- sum(modLd$x) / nrow(modLd) * 1000 / ojaAr / 100
+
+cal[6, 4] <- round(100 * ((cal[6, 3] - cal[6, 2]) / cal[6, 2]), 2)
+
+# ______________________________________________________________________________
+# Partitioned mean concentrations (SURO/INFW/AGWO)
+rocCon <- aggregate(datMCC[, 7 : 8], by = list(datMCC$ROC), FUN = 'mean')
+
+rocCon <- rocCon[, c(1, 3, 2)]
+
+rocCon$Err <- round(100 * ((rocCon$CM - rocCon$CO) / rocCon$CO), 2)
+
+cal[7 : 9, 2 : 4] <- rocCon[, 2 : 4]
+
+cal[, 2 : 3] <- round(cal[, 2 : 3], 2)
 
