@@ -1,4 +1,4 @@
-proc_routing = function(shpFile) {
+proc_network_linkage = function(shpFile) {
   
   library(raster)
   
