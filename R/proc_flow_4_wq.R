@@ -1,7 +1,7 @@
 proc_flow_4_wq <- function(filDir) {
 
   # LIBRARIES AND OPTIONS ----
-  library(ggplot2)
+  # library(ggplot2)
   
   options(stringsAsFactors = FALSE, scipen = -1, warn = -1)
 
@@ -13,11 +13,14 @@ proc_flow_4_wq <- function(filDir) {
   latNme <- read.csv(paste0(filDir, '/siletz_perlnd_runoff_names.csv')) # Names
   
   # ORGANIZE DATA ----
-  qLat$Date <- as.POSIXct(qLat$Date, '%Y-%m-%d %H:%M:%S',
-                          tz = 'America/Los_Angeles')
+  # Dates
+  ts <- seq(as.POSIXct(qRch$Date[1], '%Y-%m-%d %H:%M:%S', tz = 'America/Los_Angeles'),
+            as.POSIXct(qRch$Date[nrow(qRch)], '%Y-%m-%d %H:%M:%S', tz = 'America/Los_Angeles'),
+            3600)
   
-  qRch$Date <- as.POSIXct(qRch$Date, '%Y-%m-%d %H:%M:%S',
-                          tz = 'America/Los_Angeles')
+  if (length(ts) < nrow(qRch)) {ts <- c(ts, ts[length(ts)] + 3600)}
+  
+  qRch$Date <- qLat$Date <- ts
   
   # Lateral inflow names
   oNms <- data.frame(do.call(rbind, strsplit(names(latNme), '_')))
@@ -38,6 +41,9 @@ proc_flow_4_wq <- function(filDir) {
     qLat[, i + 307] <- qLat[, i + 307] * HRUs[i, 2] * 1000 / 3600 # Active GW RO
   
   }
+  
+  # Fix the dates--they have NAs
+  
   
   comp <- list(qLat = qLat, qRch = qRch, HRUs = HRUs)
   
