@@ -163,3 +163,25 @@ cal[7 : 9, 2 : 4] <- rocCon[, 2 : 4]
 
 cal[, 2 : 3] <- round(cal[, 2 : 3], 2)
 
+# PLOT DATA ----
+pltL <- ggplot(data = datM, aes(x = dohy)) +
+  geom_line(aes(y = LM), size = 0.5) +
+  geom_point(aes(y = LM, color = ROC), size = 1.15) +
+  geom_point(aes(y = LO), size = 2, shape = 23, color = 'darkred',
+             stroke = 1.4, fill = 'yellow') +
+  scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
+
+ggsave('loads.png', plot = pltL, path = 'D:/siletz/calib/wq/plots', width = 15,
+       height = 10, units = 'in', dpi = 300)
+
+pltC <- ggplot(data = datM, aes(x = dohy)) +
+  geom_line(aes(y = CM), size = 0.5) +
+  geom_point(aes(y = CM, color = ROC), size = 1.15) +
+  geom_point(aes(y = CO), size = 2, shape = 23, color = 'darkred',
+             stroke = 1.4, fill = 'yellow') +
+  scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 3)
+
+ggsave('concs.png', plot = pltC, path = 'D:/siletz/calib/wq/plots', width = 15,
+       height = 10, units = 'in', dpi = 300)
+
+

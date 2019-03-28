@@ -4,137 +4,57 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   
-  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
-           'D:/siletz/scripts/R/proc_network_linkage.R',
-           'D:/siletz/scripts/R/initialize_QLC_df.R',
-           'D:/siletz/scripts/R/preproc_emcdwc.R'), source)
-  
-  # Load and process data ----
-  # qOut <- proc_flow_4_wq(wqDir)
-  qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
+  library('lubridate')
 
-  # Reduce from qOut to lateral loads of specified dates 
-  qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
+  sapply(c('D:/siletz/scripts/R/proc_emcdwc.R'), source)
   
-  # Pre-proces emcdwc table
-  nmVec <- names(qOut[['qLat']])
+  # Create a data frame of date iterations
+  yrs <- year(strD) : year(endD)
   
-  emcdwc <- preproc_emcdwc(nmVec = nmVec, emcFil = emcFil)
-  
-  lLat <- qLat # Initialize the df
-  
-  cCol <- which(names(emcdwc) == 'conc')
-  
-  for (i in 2 : length(qLat)) {lLat[, i] <- qLat[, i] * emcdwc[i, cCol] * 3.6}
-  
-  # Separate out flows, loads and concentrations
-  qlcLat <- proc_qlc(emc = emcdwc, parV = 'BAS', qLat, lLat) # Basin aggregate
-  
-  latL <- qlcLat[['load']]
-  
-  # Process reach flows and volume ----
-  qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
-  
-  rchV <- qRch[, c(1, ((length(qRch) - 1) / 2 + 2) : length(qRch))] # Reach Vol 
-  
-  rchQ <- qRch[, 1 : ((length(qRch) - 1) / 2 + 1)] # Reach outflow
-  
-  # Reorder because HSPF puts them in a funny order
-  nOrd <- unique(emcdwc$BAS)
-  
-  # Initialize data frame for zeroed-out DFs
-  rchL <- initialize_QLC_df(nOrd = nOrd, modDF = rchV, zero = TRUE)
-  
-  RAT <- IMAT <- rchC <- rchS <- rchE <- rchO <- rchL
-  
-  rchQ <- initialize_QLC_df(nOrd = nOrd, modDF = rchQ, zero = FALSE)
-  
-  rchV <- initialize_QLC_df(nOrd = nOrd, modDF = rchV, zero = FALSE)
-  
-  latL <- initialize_QLC_df(nOrd = nOrd, modDF = latL, zero = FALSE)
-  
-  # Convert volumes from Mm3 to m3
-  rchO[, 2 : length(rchQ)] <- rchQ[, 2 : length(rchQ)] * 3600 # Rch Out Vol (m3)
-  
-  rchV[, 2 : length(rchV)] <- rchV[, 2 : length(rchV)] * 10^6 # Rch Vol (m3)
-  
-  # RAT AND CRRAT
-  RAT[, 2 : length(rchV)] <- rchV[, 2 : length(rchV)] / rchO[, 2 : length(rchO)]
-  
-  meanRAT <- colMeans(RAT[, 2 : length(RAT)])
-  
-  # Calculate JS and COJS
-  JS <- ifelse(meanRAT / 1.5 >= 1, 1, meanRAT / 1.5)
-  
-  COJS <- 1 - JS
-  
-  # Convert reach flow rate (m3/s) to reach out volume (m3/dt)
-  for (i in 2 : length(rchS)) {
+  if (length(yrs) == 1) {
     
-    rchS[, i] <- JS[i - 1] * rchQ[, i] * 3600
+    dts <- data.frame(as.POSIXct(strD, '%Y-%m-%d', tz = 'America/Los_Angeles'),
+                      as.POSIXct(endD, '%Y-%m-%d', tz = 'America/Los_Angeles'))
     
-    rchE[, i] <- COJS[i - 1] * rchQ[, i] * 3600
+  } else {
+    
+    intDts <- paste0(yrs[2 : length(yrs)], '-01-01')
+    
+    dts <- data.frame(as.POSIXct(c(strD, intDts), '%Y-%m-%d',
+                                 tz = 'America/Los_Angeles'),
+                      as.POSIXct(c(intDts, endD), '%Y-%m-%d',
+                                 tz = 'America/Los_Angeles'))
     
   }
+
+  if (dts[nrow(dts), 1] == dts[nrow(dts), 2]) {dts <- dts[-nrow(dts), ]}
   
-  # Import reach processing information
-  lnks <- proc_network_linkage(basFil)
-
-  # CALCULATE OUTFLOW CONCENTRATION AND LOADS
-  for (i in 2 : length(latL)) {
-
-    bsn <- lnks[['pOrd']][i - 1, 2] # Retrieve the basin for processing
+  # Initialize the restart (must be NA or proc_emcdwc will crash)
+  restart <- NA
+  
+  qlcTmp <- list()
+  
+  for (n in 1 : nrow(dts)) { 
     
-    bcl <- bsn + 1 # Processs basin column
+    # Run the proc_emcdwc with calculates reach loads and concentrations
+    qlcTmp <- proc_emcdwc(restart = restart, strD = dts[n, 1],
+                          endD = dts[n, 2], wqDir = wqDir, emcFil = emcFil,
+                          basFil = basFil)
     
-    usb <- lnks[['cBas']][[bsn]] # Upstream basin(s)
+    # Restart = list of 1st line of previous iteration of rchL and rchC  
+    restart <- list(ldsRst = qlcTmp[[2]][nrow(qlcTmp[[2]]), ],
+                    conRst = qlcTmp[[3]][nrow(qlcTmp[[3]]), ])
     
-    if (usb != 0) {ucl <- usb + 1} else {ucl <- 0} # Upstream basin columns
+    # Set the first instance of the output list if n = 1
+    if (n == 1) {qlcOut <- qlcTmp} else { 
     
-    # Basin instance (vector) of mass inflows - LATERAL
-    IMAT[, bcl] <- latL[, bcl]
-    
-    # Basin instance (vector) of mass inflows - LATERAL + UPSTREAM REACH(ES)
-    if (usb != 0) {
-      
-      for (k in 1 : length(usb)) IMAT[, bcl] = IMAT[, bcl] + rchL[, ucl[k]]
-      
+      for (o in 1 : 3) { 
+        
+        qlcOut[[o]] <- rbind(qlcOut[[o]][-nrow(qlcOut[[o]]), ], qlcTmp[[o]])
+        
+      }
     }
-    
-    a <- Sys.time()
-    
-    for (j1 in 2 : nrow(rchQ)) {
-      
-      j0 = j1 - 1 # previous time step
-      
-      # PAR     PAR           O CONV    UNIT1   UNIT2  
-      xIMAT   = IMAT[j1, bcl]         # kg   -> kg
-      xCONCS  = rchC[j0, bcl] * 10^-3 # mg/L -> kg/m3
-      xVOLS   = rchV[j0, bcl]         # m3   -> m3
-      xSROVOL = rchS[j0, bcl]         # m3   -> m3
-      xVOL    = rchV[j1, bcl]         # m3   -> m3
-      xEROVOL = rchE[j1, bcl]         # m3   -> m3
-      
-      # CONC = [IMAT + CONCS * (VOLS - SROVOL)] / (VOL + EROVOL); mg/L
-      xCONC <- 10^3 * (xIMAT + xCONCS * (xVOLS - xSROVOL)) / (xVOL + xEROVOL)
-      
-      rchC[j1, bcl] <- xCONC
-      
-      # ROMAT = SROVOL * CONCS + EROVOL * CONC
-      xROMAT <- xSROVOL * xCONCS + xEROVOL * xCONC * 10^-3 # in kg/m3
-      
-      rchL[j1, bcl] <- xROMAT
-      
-    }
-    
-    cat(paste0('Basin ', bsn, ' complete. Processing time: ',
-               round(as.numeric(Sys.time() - a), 2)), 'seconds\n')
-    
   }
-  
-  # Return a list of DFs with flows, loads and concentrations from each reach
-  qlcOut <- list(reach_flows = rchQ, reach_loads = rchL, reach_conc  = rchC)
   
   return(qlcOut)
   

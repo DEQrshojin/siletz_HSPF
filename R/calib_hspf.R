@@ -157,7 +157,7 @@ for (i in 1) {
   datMnt$HY <- ifelse(datMnt$MN < 10, datMnt$YR, datMnt$YR + 1)
 
   # QUANTILES ----
-  pct <- c(0.05, 0.25, 0.50, 0.75, 0.95)
+  pct <- c(0.10, 0.25, 0.50, 0.75, 0.90)
   
   qntSlz <- quantile(datDly$qSlz_G, pct, na.rm = TRUE)
 
@@ -183,47 +183,47 @@ for (i in 1) {
   slzPlot = ggplot(data = datDly) +
     geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
     geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
-    geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
-               color = 'darkblue') + 
-    geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
-               color = 'darkred') + 
-    scale_y_log10(limits = c(1, 50000), labels = comma) +
-    xlab("Day of the year") + ylab("Flow (cfs)") +
-    facet_wrap(~ HY, ncol = 3) + 
+    # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
+    #            color = 'darkblue') + 
+    # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
+    #            color = 'darkred') + 
+    scale_y_log10(limits = c(50, 50000), labels = comma) +
+    xlab("Day of the year (Oct 01 to Sep 30)") + ylab("Flow (cfs)") +
+    facet_wrap(~ HY, ncol = 4) + 
     geom_hline(yintercept = qntSlz[1], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSlz[2], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSlz[2], size = 0.4, linetype = 2) +
     geom_hline(yintercept = qntSlz[3], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSlz[4], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSlz[4], size = 0.4, linetype = 2) +
     geom_hline(yintercept = qntSlz[5], size = 0.4, linetype = 2) +
     annotate("text", 330, qntSlz[1], label = pcNm[1], vjust = 0, size = 3.0) +
-    annotate("text", 330, qntSlz[2], label = pcNm[2], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSlz[4], label = pcNm[4], vjust = 0, size = 3.0) + 
+    # annotate("text", 330, qntSlz[2], label = pcNm[2], vjust = 0, size = 3.0) + 
+    annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) +
+    # annotate("text", 330, qntSlz[4], label = pcNm[4], vjust = 0, size = 3.0) + 
     annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
 
-  sunPlot = ggplot(data = datDly) +
-    geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
-    geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
-    geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
-               color = 'darkblue') + 
-    geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
-               color = 'darkred') + 
-    scale_y_log10(limits = c(0.1, 5000), labels = comma) +
-    xlab("Date") + ylab("Flow (cfs)") +
-    facet_wrap(~ HY, ncol = 3) + 
-    geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSun[2], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSun[4], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
-    annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
-    annotate("text", 330, qntSun[2], label = pcNm[2], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSun[4], label = pcNm[4], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
+  # sunPlot = ggplot(data = datDly) +
+  #   geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
+  #   geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
+  #   geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
+  #              color = 'darkblue') + 
+  #   geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
+  #              color = 'darkred') + 
+  #   scale_y_log10(limits = c(0.1, 5000), labels = comma) +
+  #   xlab("Date") + ylab("Flow (cfs)") +
+  #   facet_wrap(~ HY, ncol = 3) # + 
+    # geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSun[2], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSun[4], size = 0.4, linetype = 2) +
+    # geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
+    # annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
+    # annotate("text", 330, qntSun[2], label = pcNm[2], vjust = 0, size = 3.0) + 
+    # annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) + 
+    # annotate("text", 330, qntSun[4], label = pcNm[4], vjust = 0, size = 3.0) + 
+    # annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
   
   ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
-         path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')  
+         path = pltPath, width = 10, height = 10 * (3 / 4), dpi = 300, units = 'in')  
   
   ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
          path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')  
