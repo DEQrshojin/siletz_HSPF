@@ -4,15 +4,15 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   
-  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
-           'D:/siletz/scripts/R/proc_network_linkage.R',
-           'D:/siletz/scripts/R/initialize_QLC_df.R',
-           'D:/siletz/scripts/R/preproc_emcdwc.R'), source)
+  sapply(c('C:/siletz/scripts/R/proc_qlc.R', 'C:/siletz/scripts/R/reduce_qlc.R',
+           'C:/siletz/scripts/R/proc_flow_4_wq.R',
+           'C:/siletz/scripts/R/proc_network_linkage.R',
+           'C:/siletz/scripts/R/initialize_QLC_df.R',
+           'C:/siletz/scripts/R/preproc_emcdwc.R'), source)
   
   # Load and process data ----
   # qOut <- proc_flow_4_wq(wqDir)
-  qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
+  qOut <- readRDS('C:/siletz/calib/wq/qOut.RData')
 
   # Reduce from qOut to lateral loads of specified dates 
   qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
@@ -71,7 +71,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # RAT AND CRRAT
   RAT[, 2 : length(rchV)] <- rchV[, 2 : length(rchV)] / rchO[, 2 : length(rchO)]
   
-  meanRAT <- colMeans(RAT[, 2 : length(RAT)])
+  meanRAT <- colMeans(RAT[, 2 : length(RAT)], na.rm = T)
   
   # Calculate JS and COJS
   JS <- ifelse(meanRAT / 1.5 >= 1, 1, meanRAT / 1.5)
@@ -122,15 +122,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
       xSROVOL = rchS[j0, bcl]         # m3   -> m3
       xVOL    = rchV[j1, bcl]         # m3   -> m3
       xEROVOL = rchE[j1, bcl]         # m3   -> m3
-      
-      if (xVOL == 0 & xEROVOL == 0) {
-        
-        xVOL <- min(rchV[j1, bcl], na.rm = T)
-        
-        xEROVOL <- min(rchE[j1, bcl], na.rm = T)
-      
-      }
-      
+
       # CONC = [IMAT + CONCS * (VOLS - SROVOL)] / (VOL + EROVOL); mg/L
       xCONC <- 10^3 * (xIMAT + xCONCS * (xVOLS - xSROVOL)) / (xVOL + xEROVOL)
       

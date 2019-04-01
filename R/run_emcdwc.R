@@ -6,7 +6,7 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   
   library('lubridate')
 
-  sapply(c('D:/siletz/scripts/R/proc_emcdwc.R'), source)
+  sapply(c('C:/siletz/scripts/R/proc_emcdwc.R'), source)
   
   # Create a data frame of date iterations
   yrs <- year(strD) : year(endD)
@@ -34,7 +34,11 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   
   qlcTmp <- list()
   
-  for (n in 1 : nrow(dts)) { 
+  tTime <- 0
+  
+  for (n in 1 : nrow(dts)) {
+    
+    a <- as.numeric(Sys.time())
     
     # Run the proc_emcdwc with calculates reach loads and concentrations
     qlcTmp <- proc_emcdwc(restart = restart, strD = dts[n, 1],
@@ -54,7 +58,16 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
         
       }
     }
+    
+    pTime <- round((as.numeric(Sys.time() - a)) / 60, 2) # time in minutes
+    
+    tTime <- tTime + pTime
+    
+    cat(paste0('Year: ', yrs[n], " processed in ", pTime, ' minutes\n'))
+    
   }
+  
+  cat(paste0('Total processing time: ', tTime, ' minutes\n'))
   
   return(qlcOut)
   

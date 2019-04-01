@@ -4,12 +4,13 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   
-  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
-           'D:/siletz/scripts/R/preproc_emcdwc.R'), source)
+  sapply(c('C:/siletz/scripts/R/proc_qlc.R', 'C:/siletz/scripts/R/reduce_qlc.R',
+           'C:/siletz/scripts/R/proc_flow_4_wq.R',
+           'C:/siletz/scripts/R/preproc_emcdwc.R'), source)
   
   # Load and process data ----
-  qOut <- proc_flow_4_wq(wqDir)
+  # qOut <- proc_flow_4_wq(wqDir)
+  qOut <- readRDS('C:/siletz/calib/wq/qOut.RData')
   
   # Reduce from qOut to lateral loads of specified dates 
   qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])

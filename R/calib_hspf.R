@@ -1,4 +1,4 @@
-#! D:/Program Files/R/R-3.5.2/bin Rscript
+#! C:/Program Files/R/R-3.5.2/bin Rscript
 
 # RUN CALIBRATION STATISTICS AND GRAPHS FOR GIVEN MODEL RUN
 # Ryan Shojinaga, Water Quality Analyst, NRS3, Oregon DEQ
@@ -15,7 +15,7 @@ for (i in 1) {
   options(warn = -1)
 
   # LOAD FUNCTIONS ----
-  filPath <- 'D:/siletz/'
+  filPath <- 'C:/siletz/'
   
   datPath <- paste0(filPath, 'calib')
   
@@ -44,7 +44,7 @@ for (i in 1) {
   n = as.numeric(readLines(countFil))  
   
   # LOAD, MERGE, AND PROCESS DATA ----
-  qData <- read.csv('D:/siletz/calib/siletz_out_sed.csv',
+  qData <- read.csv('C:/siletz/calib/siletz_out_sed.csv',
                     stringsAsFactors = FALSE)
   
   qData <- qData[, c(1, 12, 4)]
@@ -52,7 +52,7 @@ for (i in 1) {
   # Convert m3/s to cfs
   qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
 
-  qGage <- read.csv('D:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
+  qGage <- read.csv('C:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
   qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
                            tz = 'America/Los_Angeles')
@@ -166,7 +166,7 @@ for (i in 1) {
   pcNm <- names(qntSun)
 
   # PEAK STORM FLOWS ---- 
-  qStm <- read.csv('D:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
+  qStm <- read.csv('C:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
   
   qStm$Date = as.Date(paste0(20, substr(qStm$name, 7, 12)), '%Y%m%d')
   
@@ -327,7 +327,7 @@ for (i in 1) {
                           'PBSSn' = pBStrSun,
                           stringsAsFactors = FALSE)
   
-  write.csv(calSttOut, 'D:/siletz/calib/cal_stat.csv', row.names = FALSE)
+  write.csv(calSttOut, 'C:/siletz/calib/cal_stat.csv', row.names = FALSE)
   
   # TIDY UP! ----
   # Move the output files to storage folders

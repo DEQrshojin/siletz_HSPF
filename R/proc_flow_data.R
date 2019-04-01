@@ -36,7 +36,7 @@ qSlzDly <- aggregate(qSlz$Qcfs, by = list(qSlz$Date2), FUN = 'mean',
 
 colnames(qSlzDly)[1] <- 'Date'
 
-ts <- as.Date(c('1990-10-01', '2018-09-30'), '%Y-%m-%d')
+ts <- as.Date(c('2004-01-01', '2018-04-01'), '%Y-%m-%d')
 
 ts <- data.frame('Date' = seq(ts[1], ts[2], 1), stringsAsFactors = FALSE)
 
@@ -55,6 +55,6 @@ qData <- merge(ts, qSlzDly, by.x = 'Date', by.y = 'Date',
 
 names(qData) <- c('Date', 'qSlz')
 
-write.csv(qData, file = 'D:/siletz_tmp/scratch/wq/slz_qDaily.csv',
+write.csv(qData, file = 'C:/siletz/calib/wq/slz_qDaily.csv',
           row.names = FALSE)
 
