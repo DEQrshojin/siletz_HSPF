@@ -4,9 +4,10 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   
-  library('lubridate')
+  suppressMessages(library('lubridate'))
+  suppressMessages(library('dplyr'))
 
-  sapply(c('C:/siletz/scripts/R/proc_emcdwc.R'), source)
+  sapply(c('D:/siletz/scripts/R/proc_emcdwc.R'), source)
   
   # Create a data frame of date iterations
   yrs <- year(strD) : year(endD)

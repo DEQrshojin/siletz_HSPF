@@ -1,6 +1,6 @@
 proc_network_linkage = function(shpFile) {
   
-  library(raster)
+  suppressMessages(library(raster))
   
   shpFile = shapefile(shpFile)
   

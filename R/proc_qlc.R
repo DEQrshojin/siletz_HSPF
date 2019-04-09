@@ -1,5 +1,7 @@
 proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
+  # This function 
+  
   lstB <- data.frame(BAS = unique(emc$BAS))
   
   if(parV != 'BAS') {

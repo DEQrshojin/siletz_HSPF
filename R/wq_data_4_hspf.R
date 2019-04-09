@@ -40,7 +40,7 @@ wq_data_4_hspf <- function(strD, endD, pars, stns) {
   names(wqDt) <- c('Date', 'C_mgL')
   
   # Load flows
-  qSlz <- read.csv('C:/siletz/calib/gge_wq.csv')
+  qSlz <- read.csv('D:/siletz/calib/gge_wq.csv')
   
   qSlz$Date <- as.Date(qSlz$Date, '%Y-%m-%d')
   

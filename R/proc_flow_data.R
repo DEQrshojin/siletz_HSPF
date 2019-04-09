@@ -55,6 +55,6 @@ qData <- merge(ts, qSlzDly, by.x = 'Date', by.y = 'Date',
 
 names(qData) <- c('Date', 'qSlz')
 
-write.csv(qData, file = 'C:/siletz/calib/wq/slz_qDaily.csv',
+write.csv(qData, file = 'D:/siletz/calib/wq/slz_qDaily.csv',
           row.names = FALSE)
 

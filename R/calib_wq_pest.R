@@ -1,17 +1,17 @@
-calib_emcdwc <- function(pars, stns, strD, endD, n) { 
+calib_wq_pest <- function(pars, stns, strD, endD, n) { 
 
   # LIBRARIES, OPTIONS AND FUNCTIONS ----
   options(warn = -1)
   
-  library('reshape2')
-  library('ggplot2')
-  library('lubridate')
+  suppressMessages(library('reshape2'))
+  suppressMessages(library('ggplot2'))
+  suppressMessages(library('lubridate'))
+  suppressMessages(library('dplyr'))
   
   sapply(c('D:/siletz/scripts/R/runoff_components.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
            'D:/siletz/scripts/R/ro_comp_analysis.R',
-           'D:/siletz/scripts/R/get_sparrow_loads.R',
            'D:/siletz/scripts/R/flow_load_corr.R'), source)
   
   plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
@@ -21,7 +21,7 @@ calib_emcdwc <- function(pars, stns, strD, endD, n) {
   
   qRO <- runoff_components(strD = strD, endD = endD,
                            wqDir = 'D:/siletz/calib/wq',
-                           emcFil = 'D:/siletz/emcdwc.csv')
+                           emcFil = paste0('D:/siletz/emcdwc_', pars, '.csv'))
 
   wqDt <- read.csv(paste0('D:/siletz/calib/wq/', pars, '_', stns, '.csv'),
                    stringsAsFactors = FALSE)
@@ -104,54 +104,20 @@ calib_emcdwc <- function(pars, stns, strD, endD, n) {
   datM <- merge(datM, mnth, by.x = 'Mn', by.y = 'Mnth', all.x = T, all.y = T)
   
   # Intialize calibration data frame
-  cal <- data.frame(Measure = c('Total load error', 'Winter load error', 
-                                'Spring load error', 'Summer load error',
-                                'Autumn load error', 'Export rate error',
-                                'AGWO conc error', 'IFWO conc error',
-                                'SURO conc error'),
-                    ObsVal = rep(0, 9), ModVal = rep(0, 9), ERROR = rep(0, 9))
-  
-  # ____________________________________________________________________________
-  # Total selected loads comparison
-  datMCC <- datM[complete.cases(datM), ]
-  
-  cal[1, 2 : 4] <- c(round(sum(datMCC$LM), 1), round(sum(datMCC$LO), 1),
-                     round(100 * (sum(datMCC$LO) - sum(datMCC$LM)) / 
-                           sum(datMCC$LO), 2))
+  cal <- data.frame(a = c('winld01',  'sprld01', 'sumld01', 'autld01',
+                          'surcn01', 'ifwcn01', 'agwcn01'),
+                    ObsVal = rep(0, 7), b = rep(0, 7), ERROR = rep(0, 7))
   
   # ____________________________________________________________________________
   # Seasonal selected loads comparison
+  datMCC <- datM[complete.cases(datM), ]
+  
   seaLds <- aggregate(datMCC[, 5 : 6], by = list(datMCC$Seas), FUN = 'sum',
                       na.rm = T)
   
-  cal[2 : 5, 2 : 3] <- seaLds[, 2 : 3]
+  cal[1 : 4, 2 : 3] <- seaLds[, 2 : 3]
   
-  cal[2 : 5, 4] <- round((100 * (seaLds$LO - seaLds$LM) / seaLds$LO), 2)
-  
-  # ____________________________________________________________________________
-  # Annual export rates for HRUs compared to SPARROW data
-  if (pars == 'TSS' | pars == 'TP') {
-  
-    comid <- data.frame(CMID = c(23880860, 23880884),
-                        DESC = c('Siletz at Euchre', 'Siletz at Sam'),
-                        USAR = c(597.09, 504.61))
-    
-    sprLd <- get_sparrow_loads(comid$CMID, pars)
-    
-    ojaAr <- 583.13
-    
-    # Loads in kg/ha/yr
-    cal[6, 2] <- (sprLd[2, 2] + (sprLd[1, 2] - sprLd[2, 2]) *
-                                (ojaAr - comid[2, 3]) / 
-                                (comid[1, 3] - comid[2, 3])) / ojaAr / 100 
-    
-    modLd <- aggregate(datM$LM, by = list(datM$hy), FUN = 'sum')
-    
-    cal[6, 3] <- sum(modLd$x) / nrow(modLd) * 1000 / ojaAr / 100
-    
-    cal[6, 4] <- round(100 * ((cal[6, 3] - cal[6, 2]) / cal[6, 2]), 2)
-  
-  } else {cal[6, 2 : 4] <- NA}
+  cal[1 : 4, 4] <- round((100 * (seaLds$LO - seaLds$LM) / seaLds$LO), 2)
   
   # ____________________________________________________________________________
   # Partitioned mean concentrations (SURO/INFW/AGWO)
@@ -161,10 +127,40 @@ calib_emcdwc <- function(pars, stns, strD, endD, n) {
   
   rocCon$Err <- round(100 * ((rocCon$CM - rocCon$CO) / rocCon$CO), 2)
   
-  cal[7 : 9, 2 : 4] <- rocCon[, 2 : 4]
+  cal[5 : 7, 2 : 4] <- rocCon[, 2 : 4]
+
+  # CREATE MODEL.OUT FILE ----
+  # Create data frame for output
+  datOut <- datMCC[order(datMCC$Date), c(2, 7, 5)]
   
-  cal[, 2 : 3] <- round(cal[, 2 : 3], 2)
+  datOut$t1 <- paste0('dconc',
+                      as.character(ifelse((year(datOut$Date) - 2000) < 10, '0', '')),
+                      year(datOut$Date) - 2000,
+                      as.character(ifelse(month(datOut$Date) < 10, '0', '')),
+                      month(datOut$Date),
+                      as.character(ifelse(day(datOut$Date) < 10, '0', '')),
+                      day(datOut$Date))
   
+  datOut$t2 <- gsub('dconc', 'dload', datOut$t1)
+  
+  names(datOut) <- c('Date', 'b', 'b', 'a', 'a')
+  
+  datOut <- rbind(datOut[, c(4, 2)], datOut[, c(5, 3)], cal[, c(1, 3)])
+  
+  # Format for output
+  datOut$length <- 20 - sapply(datOut$a, nchar) - 1
+  
+  datOut$length <- paste0('%', datOut$length, 's')
+  
+  datOut$pre <- sapply(datOut$length, sprintf, ' ')
+  
+  datOut$prelen <- sapply(datOut$pre, nchar)
+  
+  datOut$line <- paste0(' ', datOut$a, datOut$pre, datOut$b)
+
+  write.table(datOut$line, 'D:/siletz/model_nox.out', row.names = FALSE,
+              col.names = FALSE, quote = FALSE)
+
   # PLOT DATA ----
   pltL <- ggplot(data = datM, aes(x = dohy)) +
     geom_line(aes(y = LM), size = 0.5, color = 'darkblue') +
@@ -173,7 +169,7 @@ calib_emcdwc <- function(pars, stns, strD, endD, n) {
     xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Load (ton/day)') +
     scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
   
-  ggsave(paste0(pars, '_loads_', n, '.png'), plot = pltL,
+  ggsave(paste0(pars, '_loads_ts_', n, '.png'), plot = pltL,
          path = 'D:/siletz/calib/wq/plots',
          width = 10, height = 7.5, units = 'in', dpi = 300)
   
@@ -184,7 +180,7 @@ calib_emcdwc <- function(pars, stns, strD, endD, n) {
     xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Concentration (mg/L)') +
     scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
   
-  ggsave(paste0(pars, '_concs_', n, '.png'), plot = pltC,
+  ggsave(paste0(pars, '_concs_ts_', n, '.png'), plot = pltC,
          path = 'D:/siletz/calib/wq/plots',
          width = 10, height = 7.5, units = 'in', dpi = 300)
   

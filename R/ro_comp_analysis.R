@@ -13,9 +13,11 @@ ro_comp_analysis <- function(roCmp) {
     tmp <- rowSums(roCmp[[i]][, 2 : 4])
     
     for (j in 2 : 4) {
-      
+
       roPct[[i]][, j] <- roCmp[[i]][, j] / tmp
       
+      roPct[[i]][which(is.nan(roPct[[i]][, j])), j] <- 0
+        
       roAll[, j] <- roAll[, j] + roPct[[i]][, j]
       
     }
