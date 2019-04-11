@@ -1,12 +1,15 @@
 run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
                        basFil = NULL) {
   
+  # This function is the over-arching call to run the emcdwc process. Its main
+  # purpose is to parse the Q and WQ data into years and run those individually
+  # to improve processing speed (proc time increase exponentially as number of 
+  # years increases). 
+  
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
-  
   suppressMessages(library('lubridate'))
   suppressMessages(library('dplyr'))
-
   sapply(c('D:/siletz/scripts/R/proc_emcdwc.R'), source)
   
   # Create a data frame of date iterations
@@ -52,7 +55,7 @@ run_emcdwc <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     
     # Set the first instance of the output list if n = 1
     if (n == 1) {qlcOut <- qlcTmp} else { 
-    
+      
       for (o in 1 : 3) { 
         
         qlcOut[[o]] <- rbind(qlcOut[[o]][-nrow(qlcOut[[o]]), ], qlcTmp[[o]])

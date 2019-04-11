@@ -12,15 +12,14 @@ calib_wq_pest <- function(pars, stns, strD, endD, n) {
            'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
            'D:/siletz/scripts/R/ro_comp_analysis.R',
-           'D:/siletz/scripts/R/flow_load_corr.R'), source)
+           'D:/siletz/scripts/R/qlc_corr.R'), source)
   
   plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
   
   # LOAD WQ OBS DATA ----
   rchQLC <- readRDS('D:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
   
-  qRO <- runoff_components(strD = strD, endD = endD,
-                           wqDir = 'D:/siletz/calib/wq',
+  qRO <- runoff_components(strD = strD, endD = endD, wqDir = 'D:/siletz/calib/wq',
                            emcFil = paste0('D:/siletz/emcdwc_', pars, '.csv'))
 
   wqDt <- read.csv(paste0('D:/siletz/calib/wq/', pars, '_', stns, '.csv'),
@@ -104,21 +103,27 @@ calib_wq_pest <- function(pars, stns, strD, endD, n) {
   datM <- merge(datM, mnth, by.x = 'Mn', by.y = 'Mnth', all.x = T, all.y = T)
   
   # Intialize calibration data frame
-  cal <- data.frame(a = c('winld01',  'sprld01', 'sumld01', 'autld01',
-                          'surcn01', 'ifwcn01', 'agwcn01'),
-                    ObsVal = rep(0, 7), b = rep(0, 7), ERROR = rep(0, 7))
+  cal <- data.frame(a = c('winld01',  'sprld01', 'sumld01', 'autld01', 'ttlld01',
+                          'agwcn01', 'ifwcn01', 'surcn01', 'meanc01', 'loadreg',
+                          'concreg'),
+                    ObsVal = rep(0, 11), b = rep(0, 11), ERROR = rep(0, 11))
   
   # ____________________________________________________________________________
   # Seasonal selected loads comparison
   datMCC <- datM[complete.cases(datM), ]
-  
-  seaLds <- aggregate(datMCC[, 5 : 6], by = list(datMCC$Seas), FUN = 'sum',
+
+  seaLds <- aggregate(datMCC[, c(6, 5)], by = list(datMCC$Seas), FUN = 'sum',
                       na.rm = T)
-  
+
   cal[1 : 4, 2 : 3] <- seaLds[, 2 : 3]
-  
-  cal[1 : 4, 4] <- round((100 * (seaLds$LO - seaLds$LM) / seaLds$LO), 2)
-  
+
+  cal[1 : 4, 4] <- round((100 * (seaLds$LM - seaLds$LO) / seaLds$LO), 2)
+
+  # Total (all seasons combined) loads
+  cal[5, 2 : 3] <- colSums(datMCC[, c(6, 5)])
+
+  cal[5, 4] <- round((100 * (cal[5, 3] - cal[5, 2]) / cal[5, 2]), 2)
+
   # ____________________________________________________________________________
   # Partitioned mean concentrations (SURO/INFW/AGWO)
   rocCon <- aggregate(datMCC[, 7 : 8], by = list(datMCC$ROC), FUN = 'mean')
@@ -127,65 +132,74 @@ calib_wq_pest <- function(pars, stns, strD, endD, n) {
   
   rocCon$Err <- round(100 * ((rocCon$CM - rocCon$CO) / rocCon$CO), 2)
   
-  cal[5 : 7, 2 : 4] <- rocCon[, 2 : 4]
+  cal[6 : 8, 2 : 4] <- rocCon[, 2 : 4]
 
-  # CREATE MODEL.OUT FILE ----
-  # Create data frame for output
-  datOut <- datMCC[order(datMCC$Date), c(2, 7, 5)]
+  # Mean annual concentrations
+  cal[9, 2 : 3] <- colMeans(datMCC[, c(8, 7)])
   
-  datOut$t1 <- paste0('dconc',
-                      as.character(ifelse((year(datOut$Date) - 2000) < 10, '0', '')),
-                      year(datOut$Date) - 2000,
-                      as.character(ifelse(month(datOut$Date) < 10, '0', '')),
-                      month(datOut$Date),
-                      as.character(ifelse(day(datOut$Date) < 10, '0', '')),
-                      day(datOut$Date))
-  
-  datOut$t2 <- gsub('dconc', 'dload', datOut$t1)
-  
-  names(datOut) <- c('Date', 'b', 'b', 'a', 'a')
-  
-  datOut <- rbind(datOut[, c(4, 2)], datOut[, c(5, 3)], cal[, c(1, 3)])
-  
-  # Format for output
-  datOut$length <- 20 - sapply(datOut$a, nchar) - 1
-  
-  datOut$length <- paste0('%', datOut$length, 's')
-  
-  datOut$pre <- sapply(datOut$length, sprintf, ' ')
-  
-  datOut$prelen <- sapply(datOut$pre, nchar)
-  
-  datOut$line <- paste0(' ', datOut$a, datOut$pre, datOut$b)
-
-  write.table(datOut$line, 'D:/siletz/model_nox.out', row.names = FALSE,
-              col.names = FALSE, quote = FALSE)
+  cal[9, 4] <- round((100 * (cal[9, 3] - cal[9, 2]) / cal[9, 2]), 2)
 
   # PLOT DATA ----
-  pltL <- ggplot(data = datM, aes(x = dohy)) +
-    geom_line(aes(y = LM), size = 0.5, color = 'darkblue') +
-    geom_point(aes(y = LO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Load (ton/day)') +
-    scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
+  pltL <- ggplot(data = datM, aes(x = dohy)) + theme_bw() +
+          geom_line(aes(y = LM), size = 0.5, color = 'darkblue') +
+          geom_point(aes(y = LO), size = 1.2, shape = 23, color = 'darkred',
+                     stroke = 1.0, fill = 'yellow') +
+          xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Loads (ton/day)') +
+          # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4)
+          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
+
+  ggsave(paste0(pars, '_loads_ts_', n, '.png'), plot = pltL, width = 10,
+         height = 7.5,  path = 'D:/siletz/calib/wq/plots', units = 'in',
+         dpi = 300)
   
-  ggsave(paste0(pars, '_loads_ts_', n, '.png'), plot = pltL,
-         path = 'D:/siletz/calib/wq/plots',
-         width = 10, height = 7.5, units = 'in', dpi = 300)
+  pltC <- ggplot(data = datM, aes(x = dohy)) + theme_bw() +
+          geom_line(aes(y = CM), size = 0.5, color = 'darkblue') +
+          geom_point(aes(y = CO), size = 1.2, shape = 23, color = 'darkred',
+                     stroke = 1.0, fill = 'yellow') +
+          xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Concentration (mg/L)') +
+          # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4)
+          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) 
   
-  pltC <- ggplot(data = datM, aes(x = dohy)) +
-    geom_line(aes(y = CM), size = 0.5, color = 'darkblue') +
-    geom_point(aes(y = CO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Concentration (mg/L)') +
-    scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
+  ggsave(paste0(pars, '_concs_ts_', n, '.png'), plot = pltC, width = 10, 
+         height = 7.5, path = 'D:/siletz/calib/wq/plots', units = 'in',
+         dpi = 300)
   
-  ggsave(paste0(pars, '_concs_ts_', n, '.png'), plot = pltC,
-         path = 'D:/siletz/calib/wq/plots',
-         width = 10, height = 7.5, units = 'in', dpi = 300)
+  corr <- qlc_corr(pars = pars, datM = datM, n = n)
   
-  flow_load_corr(pars = pars, datM = datM, n = n)
+  cal[10, 2 : 4] <- corr$Loads; cal[11, 2 : 4] <- corr$Concs
 
   return(cal)
 
 }
+
+# CREATE MODEL.OUT FILE ----
+# Create data frame for output
+# datOut <- datMCC[order(datMCC$Date), c(2, 7, 5)]
+# 
+# datOut$t1 <- paste0('dconc',
+#                     as.character(ifelse((year(datOut$Date) - 2000) < 10, '0', '')),
+#                     year(datOut$Date) - 2000,
+#                     as.character(ifelse(month(datOut$Date) < 10, '0', '')),
+#                     month(datOut$Date),
+#                     as.character(ifelse(day(datOut$Date) < 10, '0', '')),
+#                     day(datOut$Date))
+# 
+# datOut$t2 <- gsub('dconc', 'dload', datOut$t1)
+# 
+# names(datOut) <- c('Date', 'b', 'b', 'a', 'a')
+# 
+# datOut <- rbind(datOut[, c(4, 2)], datOut[, c(5, 3)], cal[, c(1, 3)])
+# 
+# # Format for output
+# datOut$length <- 20 - sapply(datOut$a, nchar) - 1
+# 
+# datOut$length <- paste0('%', datOut$length, 's')
+# 
+# datOut$pre <- sapply(datOut$length, sprintf, ' ')
+# 
+# datOut$prelen <- sapply(datOut$pre, nchar)
+# 
+# datOut$line <- paste0(' ', datOut$a, datOut$pre, datOut$b)
+# 
+# write.table(datOut$line, 'D:/siletz/model_nox.out', row.names = FALSE,
+#             col.names = FALSE, quote = FALSE)

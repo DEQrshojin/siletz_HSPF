@@ -1,7 +1,10 @@
 reduce_qlc <- function(strDte = NULL, endDte = NULL, df2Red = NULL) {
   
-  ts <- as.POSIXct(c(strDte, endDte), '%Y-%m-%d',
-                   tz = 'America/Los_Angeles')
+  # Synopsis ----
+  # This function accepts a data frame of flows and start/end dates and
+  # Returns a modified data frame truncated to the start/end dates. 
+  
+  ts <- as.POSIXct(c(strDte, endDte), '%Y-%m-%d', tz = 'America/Los_Angeles')
 
   ts <- seq(ts[1], ts[2], 3600)
 

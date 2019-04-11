@@ -12,47 +12,68 @@ for (j in 1) {
   # COUNTER ----
   countFil <- file('D:/siletz/wqct.txt')
   
-  n = as.numeric(readLines(countFil))
+  n <- as.numeric(readLines(countFil))
   
   # READ IN WQ CONTROL FILE VARIABLES 
-  cfv <- read.csv('D:/siletz/wq_confil.csv')
-  
-  # VARIABLES ----
-  pars <- cfv[1, 2]
-  stns <- cfv[2, 2]
-  strD <- cfv[3, 2]
-  endD <- cfv[4, 2]
-  wqDir <- cfv[5, 2]
-  emcFil <- paste0('D:/siletz/emcdwc_', pars, '.csv')
-  basFil <- cfv[6, 2]
-  suro <- as.numeric(cfv[7, 2])
-  ifwa <- as.numeric(cfv[8, 2])
-  ifwb <- as.numeric(cfv[9, 2])
-  ifwc <- as.numeric(cfv[10, 2])
-  agwa <- as.numeric(cfv[11, 2])
-  agwb <- as.numeric(cfv[12, 2])
-  agwc <- as.numeric(cfv[13, 2])
-  shft <- as.numeric(cfv[14, 2])
-  if (length(cfv) == 2) {tmat <- as.numeric(cfv[15, 2])} else {
-    tmat <- as.numeric(cfv[15, 2 : 5])}
+  v <- strsplit(readLines('D:/siletz/wq_confil.csv'), ',')
 
+  for (i in 1 : length(v)) {
+    
+    names(v)[i] = v[[i]][1] # Name the element from the first item in the element
+    
+    v[[i]] <- v[[i]][2 : length(v[[i]])] # Remove the first element
+    
+  }
+
+  numEls <- c('SURO', 'IFWC', 'IFW1', 'IFW2', 'IFW3', 'IFW4', 'IFW5', 'IFW6',
+              'AGWC', 'AGW1', 'AGW2', 'AGW3', 'AGW4', 'AGW5', 'AGW6', 'tmat',
+              'ovwr', 'lo', 'hi')
+
+  # Coerce numeric elements to numeric
+  for (el in numEls) {v[[el]] <- as.numeric(v[[el]])}
+  
+  v$emcFil <- paste0('D:/siletz/emcdwc_', v$pars, '.csv')
+  
+  # Overwrite Harmonic parameters ----
+  if (v$ovwr == 1) {
+    
+    wqDF <- read.csv(paste0(v$wqDir, '/', v$pars, '_', v$stns, '.csv'),
+                     stringsAsFactors = F)
+    
+    wqDF <- wqDF[, c(1, 2)]
+    
+    wqDF$Date <- as.Date(wqDF$Date, '%Y-%m-%d')
+    
+    source('D:/siletz/scripts/R/seasonal_wq_conc.R')
+    
+    fit <- seasonal_wq_conc(wqDF = wqDF, par = v$pars, lo = v$lo, hi = v$hi)
+    
+    v$IFWC = fit$f90[1]; v$IFW1 = fit$f90[2]; v$IFW2 = fit$f90[3]; v$IFW3 = fit$f90[4]
+    v$IFW4 = fit$f90[5]; v$IFW5 = fit$f90[6]; v$IFW6 = fit$f90[7]
+    v$AGWC = fit$f10[1]; v$AGW1 = fit$f10[2]; v$AGW2 = fit$f10[3]; v$AGW3 = fit$f10[4]
+    v$AGW4 = fit$f10[5]; v$AGW5 = fit$f10[6]; v$AGW6 = fit$f10[7] 
+    
+  }
+  
   # Write wq parameters & seasonality to .csv ----
-  df <- write_wq_2_pars(pars = pars, suro = suro, ifwa = ifwa, ifwb = ifwb,
-                        ifwc = ifwc, agwa = agwa, agwb = agwb, agwc = agwc,
-                        shft = shft, tmat = tmat)
+  df <- write_wq_2_csv(pars = v$pars, tmat = v$tmat, SURO = v$SURO, IFWC = v$IFWC,
+                       IFW1 = v$IFW1, IFW2 = v$IFW2, IFW3 = v$IFW3, IFW4 = v$IFW4,
+                       IFW5 = v$IFW5, IFW6 = v$IFW6, AGWC = v$AGWC, AGW1 = v$AGW1,
+                       AGW2 = v$AGW2, AGW3 = v$AGW3, AGW4 = v$AGW4, AGW5 = v$AGW5,
+                       AGW6 = v$AGW6)
   
   # run_emcdwc ----
-  rchQLC <- run_emcdwc(strD = strD, endD = endD, wqDir = wqDir, emcFil = emcFil,
-                       basFil = basFil)
+  rchQLC <- run_emcdwc(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
+                       emcFil = v$emcFil, basFil = v$basFil)
   
   saveRDS(rchQLC, 'D:/siletz/calib/wq/rchQLC.RData')
   
   # calib_emcdwc ----
-  calStat <- calib_wq_pest(pars = pars, stns = stns, strD = strD, endD = endD,
-                           n = n)
+  calStat <- calib_wq_pest(pars = v$pars, stns = v$stns, strD = v$strD,
+                           endD = v$endD, n = n)
   
-  write.csv(calStat, file = paste0(wqDir, "/calStat/", pars, '_calStat_', n, '.csv'),
-            row.names = FALSE)
+  write.csv(calStat, file = paste0(v$wqDir, "/calStat/", v$pars,
+                                   '_calStat_', n, '.csv'), row.names = FALSE)
   
   # Update the run number and write back to the file
   n = n + 1
@@ -60,5 +81,5 @@ for (j in 1) {
   writeLines(as.character(n), countFil)
   
   close(countFil)
-
+  
 }

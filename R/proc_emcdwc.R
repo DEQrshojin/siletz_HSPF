@@ -1,28 +1,29 @@
 proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
                         emcFil = NULL, basFil = NULL) {
   
-  # This function takes lateral flows, specifiec concentrations or seasonal
-  # concentrations and calculates lateral loads and concentrations based on
-  # partitioned runoff components (i.e., surface, interflow, GW). It then uses
-  # specified routing information, and flow routing data (reach flows) to 
-  # route loads and concentrations to downstream reaches, accepting upstream
-  # flows and loads and lateral flows/loads/concentrations, and calculating
-  # downstream loads and concentrations.
+  # Synopsis ----
+  # This function takes lateral flows, specified concentrations or seasonal
+  # concentrations (emc/dwc) and calculates lateral loads and concentrations based
+  # on partitioned runoff components (i.e., surface, interflow, GW). It then uses
+  # specified routing information, and flow routing data (reach flows) to route
+  # loads and concentrations to downstream reaches, accepting upstream flows and
+  # loads and lateral flows/loads/concentrations, and calculating downstream loads
+  # and concentrations.
 
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   suppressMessages(library('dplyr'))
   
   sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
            'D:/siletz/scripts/R/proc_network_linkage.R',
            'D:/siletz/scripts/R/initialize_QLC_df.R',
            'D:/siletz/scripts/R/preproc_emcdwc.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
-           'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R'), source)
+           'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R'),
+         source)
   
   # Load and process data ----
-  # qOut <- proc_flow_4_wq(wqDir)
+  # qOut <- proc_flow_4_wq(wqDir) Not needed -> current qOut = whole hydro period
   qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
 
   # Reduce from qOut to lateral loads of specified dates 
@@ -31,54 +32,73 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # Pre-proces emcdwc table
   nmVec <- names(qOut[['qLat']])
   
-  emcdwc <- preproc_emcdwc(nmVec = nmVec, emcFil = emcFil)
+  # SIB = Surface, interflow, baseflow runoff concentration parameters
+  sib <- preproc_emcdwc(nmVec = nmVec, emcFil = emcFil)
   
   lLat <- qLat # Initialize the df
-  
+
   # Extract column indeces of SURO, IFWO and AGWO
-  ind <- list(SURO = which(emcdwc$ROC == 'SURO'),
-              IFWO = which(emcdwc$ROC == 'IFWO'),
-              AGWO = which(emcdwc$ROC == 'AGWO'))
+  ind <- list(SURO = which(sib$ROC == 'SURO'), IFWO = which(sib$ROC == 'IFWO'),
+              AGWO = which(sib$ROC == 'AGWO'))
   
   # Create a dataframe to calculate seasonality (periodicity) of the time series
-  int <- data.frame(Date = lLat$Date)
+  it <- data.frame(Date = lLat$Date)
   
-  int <- int %>%
-         mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
-         mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
-         mutate(per = yr + (doy + emcdwc[2, length(emcdwc)]) / dys,
-                SURO = 0, IFWO = 0, AGWO = 0)
-  
-  # CALCULATE LATERAL LOADS ----
+  it <- it %>%
+        mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
+        mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
+        mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
+
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #      
+  # Calculate lateral loads ----
+  # Catchment Inflows
   for (i in 1 : 3) {
     
     if(names(ind)[i] == 'SURO') {
       
-      for (j in ind[[i]]) {lLat[, j] <- qLat[, j] * emcdwc[j, 'SURO'] * 3.6}
+      for (j in ind[[i]]) {lLat[, j] <- qLat[, j] * sib[j, 'SURO'] * 3.6}
       
     } else {
       
       for (j in ind[[i]]) {
       
         # Select columns for seasonal variation function coefficients
-        if (i == 2) {k <- 6 : 8} else {k <- 9 : 11}
+        if (i == 2) {k <- 6 : 12} else {k <- 13 : 19}
         
-        intConc <- emcdwc[j, k[1]] * sin(2 * pi * int$per) + 
-                   emcdwc[j, k[2]] * cos(2 * pi * int$per) + 
-                   emcdwc[j, k[3]]
+        # Calculate the concentration for each HRU and baseQ/itfwQ component
+        itCnc <- sib[j, k[1]] +
+                 sib[j, k[2]] * sin(2*pi*it$p) + sib[j, k[3]] * cos(2*pi*it$p) + 
+                 sib[j, k[4]] * sin(4*pi*it$p) + sib[j, k[5]] * cos(4*pi*it$p) + 
+                 sib[j, k[6]] * sin(6*pi*it$p) + sib[j, k[7]] * cos(6*pi*it$p)
+        
+        # Add condition to remove negative concentrations -- set to 1/2 MDL ~1.1
+        itCnc[which(itCnc < 0)] <- 0.001148
 
-        lLat[, j] <- qLat[, j] * intConc * 3.6
-        
+        # Apply to lateral flows
+        lLat[, j] <- qLat[, j] * itCnc * 3.6
+
       }
     }
   }
   
-  # Separate out flows, loads and concentrations
-  qlcLat <- proc_qlc(emc = emcdwc, parV = 'BAS', qLat, lLat) # Basin aggregate
+  # Added loads (NPDES or OSSF)
+  # No NPDES do that in Qual-2K
+  # OSSF will be added to GW
   
+  
+  # Modified loads (Red alder community multpliers)
+  # Determine if there are basins with little to no mixed/deciduous populations
+  # That basin will form the baseline from which basin modifications occur
+  # Modifications 
+  
+  
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
+  # Process lateral Q&L reaches ----
+  # Separate out flows, loads and concentrations
+  qlcLat <- proc_qlc(emc = sib, parV = 'BAS', qLat, lLat) # Basin aggregate
+
   latL <- qlcLat[['load']]
   
-  # Process reach flows and volume ----
   qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
   
   rchV <- qRch[, c(1, ((length(qRch) - 1) / 2 + 2) : length(qRch))] # Reach Vol 
@@ -86,7 +106,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   rchQ <- qRch[, 1 : ((length(qRch) - 1) / 2 + 1)] # Reach outflow
   
   # Reorder because HSPF puts them in a funny order
-  nOrd <- unique(emcdwc$BAS)
+  nOrd <- unique(sib$BAS)
   
   # Initialize data frame for zeroed-out DFs
   rchL <- initialize_QLC_df(nOrd = nOrd, modDF = rchV, zero = TRUE)
@@ -99,7 +119,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   
   RAT <- IMAT <- rchC <- rchS <- rchE <- rchO <- rchL
   
-  # RESTART Need restart for rchC and rchL ----
+  # Restart for rchC and rchL ----
   if (length(restart) > 1) {
     
     rchL[1, ] <- restart[['ldsRst']]
@@ -108,6 +128,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     
   }
 
+  # Process reach flows and volume ----
   # Convert volumes from Mm3 to m3
   rchO[, 2 : length(rchQ)] <- rchQ[, 2 : length(rchQ)] * 3600 # Rch Out Vol (m3)
   
@@ -135,7 +156,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # Import reach processing information
   lnks <- proc_network_linkage(basFil)
 
-  # CALCULATE OUTFLOW CONCENTRATION AND LOADS
+  # Calculate reach outflow loads and concentrations ----
   for (i in 2 : length(latL)) {
     
     bsn <- lnks[['pOrd']][i - 1, 2] # Retrieve the basin for processing
@@ -181,6 +202,9 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     }
   }
   
+# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
+  
+  # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach
   qlcOut <- list(reach_flows = rchQ, reach_loads = rchL, reach_conc  = rchC)
   

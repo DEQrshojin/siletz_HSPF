@@ -1,5 +1,8 @@
 initialize_QLC_df <- function(nOrd, modDF, zero = FALSE) {
 
+  # Synopsis ----
+  
+  
   # Pass a vector of the basins in model order and the DF to model on
   nOrd <- data.frame(BAS = as.numeric(nOrd[-1]))
   

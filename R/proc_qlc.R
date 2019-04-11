@@ -1,7 +1,10 @@
 proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
-  # This function 
+  # Synopsis ----
+  # This function takes the raw lateral flows/loads/conc and aggregates them into
+  # either A) QLC by basin B) QLC by HRU or C) QLC by runoff component
   
+  # By basin pre-processing ----
   lstB <- data.frame(BAS = unique(emc$BAS))
   
   if(parV != 'BAS') {
@@ -15,8 +18,8 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
     if(parV == 'HRU') {x <- 1} else if (parV == 'ROC') {x = 2}
     
   }
-
-  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY BASIN ----------------------------
+  
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY BASIN ----
   if(parV == 'BAS') {
     
     # Initialize basin data frames
@@ -46,8 +49,8 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
       names(latQLC[[j]]) <- c('Date', paste0('Bas', lstB[2 : nrow(lstB), 1]))
       
     }
-
-  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----------
+    
+    # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----
   } else {
     
     parV = c(parV, 'BAS')
@@ -60,7 +63,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
     latQLC <- list()
     
     for (i in 2 : nrow(lstB)) {
-
+      
       tmpEMC <- emc[which(emc$BAS == lstB[i, 1]), ]
       
       for (j in 1 : parDim) {

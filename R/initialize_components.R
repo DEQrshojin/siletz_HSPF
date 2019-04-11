@@ -1,6 +1,8 @@
-# COMPONENT INITIALIZATION ----
 initialize_components <- function(parm, basn, indx) {
 
+  # Synopsis ----
+  
+  
   # INITIALIZE THE DATA FRAMES ----
   prNm <- c('LZSN', 'INFL', 'LSUR', 'AGWR', 'DPFR', 'BSFR', 'AGWE',
             'UZSN', 'INFW', 'INTR')
@@ -37,11 +39,8 @@ initialize_components <- function(parm, basn, indx) {
   }
   
   # Create the list of components ----
-  comp <- list(indx = indx2,
-               mtrx = list(pwat = pwat,
-                           mint = mint,
-                           mlze = mlze,
-                           rtks = rtks))
+  comp <- list(indx = indx2, mtrx = list(pwat = pwat, mint = mint, mlze = mlze,
+                                         rtks = rtks))
 
   # Check for sediment (SDSW = 1)
   if (parm[['SDSW']] == 1) {

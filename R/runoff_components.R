@@ -5,14 +5,12 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
   options(stringsAsFactors = FALSE)
   
   sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_flow_4_wq.R',
            'D:/siletz/scripts/R/preproc_emcdwc.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R'),
          source)
   
   # Load and process data ----
-  # qOut <- proc_flow_4_wq(wqDir)
   qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
   
   # Reduce from qOut to lateral loads of specified dates 

@@ -1,5 +1,11 @@
 preproc_emcdwc <- function(nmVec = NULL, emcFil = NULL) {
 
+  # Synopsis ----
+  # This function takes the raw wq parameter file and processes it for use by 
+  # proc_emcdwc(). This includes creating a data frame with all of the HRUs and 
+  # runoff components and all of the wq concentrations and seasonal harmonic 
+  # parameters
+  
   # Set concentrations from emcdwc inputs
   emcdwc <- data.frame(do.call(rbind, strsplit(nmVec, '_')))
   

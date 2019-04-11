@@ -1,5 +1,13 @@
 proc_network_linkage = function(shpFile) {
   
+  # Synopsis ----
+  # This function processes the stream flow network from upstream to downstream 
+  # based on a user specified shapefile which contains each basin and corresponding
+  # upstream and downstream basins. Only considers multiple U/S basins, not
+  # multiple D/S basins. This function returns a list of upstream basin(s) for each
+  # basin and the processing order for reach outflow, i.e., which basins need to
+  # be processed first to last.
+  
   suppressMessages(library(raster))
   
   shpFile = shapefile(shpFile)
