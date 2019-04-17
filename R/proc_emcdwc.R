@@ -12,12 +12,13 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
 
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
+  
   suppressMessages(library('dplyr'))
   
-  sapply(c('D:/siletz/scripts/R/proc_qlc.R', 'D:/siletz/scripts/R/reduce_qlc.R',
-           'D:/siletz/scripts/R/proc_network_linkage.R',
-           'D:/siletz/scripts/R/initialize_QLC_df.R',
-           'D:/siletz/scripts/R/preproc_emcdwc.R',
+  sapply(c(paste0('D:/siletz/scripts/R/', c('proc_qlc.R', 'reduce_qlc.R',
+                                            'proc_network_linkage.R',
+                                            'initialize_QLC_df.R',
+                                            'preproc_emcdwc.R','read_wq_pars.R')),
            'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
            'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R'),
          source)
@@ -48,8 +49,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
         mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
         mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
         mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
-
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #      
+  
   # Calculate lateral loads ----
   # Catchment Inflows
   for (i in 1 : 3) {
@@ -71,34 +71,56 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
                  sib[j, k[4]] * sin(4*pi*it$p) + sib[j, k[5]] * cos(4*pi*it$p) + 
                  sib[j, k[6]] * sin(6*pi*it$p) + sib[j, k[7]] * cos(6*pi*it$p)
         
-        # Add condition to remove negative concentrations -- set to 1/2 MDL ~1.1
-        itCnc[which(itCnc < 0)] <- 0.001148
-
+        # Break if any concentrations is less than 0
+        if (length(which(itCnc < 0)) != 0) {
+          
+          print(paste0('Warning: negative concentrations in ', names(qLat)[j]))
+        
+        }
+        
         # Apply to lateral flows
         lLat[, j] <- qLat[, j] * itCnc * 3.6
-
+        
       }
     }
   }
+
+  # Pull in the control file variables
+  v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
   
-  # Added loads (NPDES or OSSF)
-  # No NPDES do that in Qual-2K
-  # OSSF will be added to GW
+  if (v$mod_loads == 1) {
+   
+    x <- as.numeric(unique(sib$BAS[2 : length(sib$BAS)]))
+    
+    v$modB <- v$modB[order(x)]; v$modL <- v$modL[order(x)]
+  
+    # Process lateral Q&L  ----
+    # Modified loads (Red alder community multpliers)
+    for (i in 1 : length(v$modB)) {
+      
+      cond <- which(sib$BAS == v$modB[i] & (sib$HRU == 'FORHI' | sib$HRU == 'FORLO'))
+      
+      lLat[, cond] <- lLat[, cond] * v$modL[i]
+      
+    }
+  }
   
   
-  # Modified loads (Red alder community multpliers)
-  # Determine if there are basins with little to no mixed/deciduous populations
-  # That basin will form the baseline from which basin modifications occur
-  # Modifications 
-  
-  
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
-  # Process lateral Q&L reaches ----
   # Separate out flows, loads and concentrations
   qlcLat <- proc_qlc(emc = sib, parV = 'BAS', qLat, lLat) # Basin aggregate
 
   latL <- qlcLat[['load']]
+
+  # Added loads (OSSF or animal unit (livestock) feces); use Qual-2Kw for NPDES
+  if (v$add_loads == 1) { 
   
+    basn <- paste0('Bas', v$addB)
+    
+    for (i in 1 : length(v$addB)) {latL[[basn[i]]] <- latL[[basn[i]]] + v$addL[i]}
+
+  }
+  
+  # Pre-process reach flows & loads for reach processing ----
   qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
   
   rchV <- qRch[, c(1, ((length(qRch) - 1) / 2 + 2) : length(qRch))] # Reach Vol 
@@ -195,14 +217,14 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
       rchC[j1, bcl] <- xCONC
       
       # ROMAT = SROVOL * CONCS + EROVOL * CONC
-      xROMAT <- xSROVOL * xCONCS + xEROVOL * xCONC * 10^-3 # in kg/m3
+      xROMAT <- xSROVOL * xCONCS + xEROVOL * xCONC * 10^-3 # in kg
       
       rchL[j1, bcl] <- xROMAT
       
     }
   }
   
-# @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
+  # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
   
   # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach

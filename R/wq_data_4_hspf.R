@@ -1,9 +1,6 @@
 wq_data_4_hspf <- function(strD, endD, pars, stns) { 
   
   # LIBRARIES AND OPTIONS ----
-  library(ggplot2)
-  library(reshape2)
-  
   options(scipen = -1, warn = -1, stringsAsFactors = FALSE)
   
   # LOAD DATA ----
@@ -40,7 +37,7 @@ wq_data_4_hspf <- function(strD, endD, pars, stns) {
   names(wqDt) <- c('Date', 'C_mgL')
   
   # Load flows
-  qSlz <- read.csv('D:/siletz/calib/gge_wq.csv')
+  qSlz <- read.csv('D:/siletz/calib/wq/gge_wq.csv')
   
   qSlz$Date <- as.Date(qSlz$Date, '%Y-%m-%d')
   

@@ -13,8 +13,9 @@ qlc_corr <- function(pars, datM, n) {
                     stroke = 1.0, fill = 'yellow') +
          xlab('Flow (cfs)') + ylab('Load (ton/day)') + 
          scale_x_log10(labels = plain, limits = c(30, 10000)) +
-         scale_y_log10(labels = plain) + theme_bw()
-  
+         scale_y_log10(labels = plain, limits = c(1e-3, 2.0)) + theme_bw()
+         # scale_y_continuous(labels = plain) + theme_bw()
+    
   ggsave(paste0(pars, '_flow_v_load_', n, '.png'), plot = plt, width = 12,
          height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
   
@@ -24,7 +25,8 @@ qlc_corr <- function(pars, datM, n) {
                     stroke = 1.0, fill = 'yellow') +
          xlab('Flow (cfs)') + ylab('Concentration (mg/L)') + 
          scale_x_log10(labels = plain, limits = c(30, 10000)) +
-         scale_y_log10(labels = plain, limits = c(0.01, 1.20)) + theme_bw()
+         scale_y_log10(labels = plain, limits = c(0.002, 0.20)) + theme_bw()
+         # scale_y_continuous(labels = plain) + theme_bw()
   
   ggsave(paste0(pars, '_flow_v_conc_', n, '.png'), plot = plt, width = 12,
          height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
@@ -43,9 +45,9 @@ qlc_corr <- function(pars, datM, n) {
   # maxL <- floor(max(max(datMCC$LO), max(datMCC$LM)))
   # maxC <- floor(max(max(datMCC$CO), max(datMCC$CM)))
   
-  maxL <- 10^floor(log10(max(max(datMCC$LO), max(datMCC$LM))))
+  maxL <- 10^ceiling(log10(max(max(datMCC$LO), max(datMCC$LM))))
 
-  maxC <- 10^floor(log10(max(max(datMCC$CO), max(datMCC$CM))))
+  maxC <- 10^ceiling(log10(max(max(datMCC$CO), max(datMCC$CM))))
 
   L121 <- data.frame(x = c(0, maxL),
                      y = c(0, maxL))
@@ -58,8 +60,9 @@ qlc_corr <- function(pars, datM, n) {
                     stroke = 1.0, fill = 'yellow') +
          geom_line(data = L121, aes(x = x, y = y)) + 
          xlab('Observed Loads (tons/day)') + ylab('Modeled Loads (ton/day)') + 
-         scale_x_log10(labels = plain, limits = c(0.001, 12)) +
-         scale_y_log10(labels = plain, limits = c(0.001, 12)) + theme_bw()
+         scale_x_log10(labels = plain, limits = c(1e-4, 10.0)) +
+         scale_y_log10(labels = plain, limits = c(1e-4, 10.0)) + theme_bw()
+         # scale_y_continuous(labels = plain) + theme_bw()
 
   ggsave(paste0(pars, '_obsmod_loads_', n, '.png'), plot = plt, width = 6,
          height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
@@ -69,8 +72,9 @@ qlc_corr <- function(pars, datM, n) {
                     stroke = 1.0, fill = 'yellow') +
          geom_line(data = C121, aes(x = x, y = y)) + 
          xlab('Observed Concentrations (mg/L)') + ylab('Modeled Concentrations (mg/L)') + 
-         scale_x_log10(labels = plain, limits = c(0.01, 2.0)) +
-         scale_y_log10(labels = plain, limits = c(0.01, 2.0)) + theme_bw()
+         scale_x_log10(labels = plain, limits = c(1e-3, 1.0)) +
+         scale_y_log10(labels = plain, limits = c(1e-3, 1.0)) + theme_bw()
+         # scale_y_continuous(labels = plain) + theme_bw()
   
   ggsave(paste0(pars, '_obsmod_concs_', n, '.png'), plot = plt, width = 6,
          height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)

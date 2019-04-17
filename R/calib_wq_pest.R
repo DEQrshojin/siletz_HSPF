@@ -158,7 +158,7 @@ calib_wq_pest <- function(pars, stns, strD, endD, n) {
                      stroke = 1.0, fill = 'yellow') +
           xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Concentration (mg/L)') +
           # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4)
-          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) 
+          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
   
   ggsave(paste0(pars, '_concs_ts_', n, '.png'), plot = pltC, width = 10, 
          height = 7.5, path = 'D:/siletz/calib/wq/plots', units = 'in',
