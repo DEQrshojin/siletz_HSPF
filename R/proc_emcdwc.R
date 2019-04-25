@@ -51,7 +51,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
         mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
   
   # Calculate lateral loads ----
-  # Catchment Inflows
+  # Catchment Inflows - calculates from all three RO components (SURO, IFWO & AGWO)
   for (i in 1 : 3) {
     
     if(names(ind)[i] == 'SURO') {
@@ -98,16 +98,21 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     # Modified loads (Red alder community multpliers)
     for (i in 1 : length(v$modB)) {
       
-      cond <- which(sib$BAS == v$modB[i] & (sib$HRU == 'FORHI' | sib$HRU == 'FORLO'))
+      # Modify for specific basins, only for forested and AGWO & IFWO
+      cond <- which(sib$BAS == v$modB[i] &
+                   (sib$HRU == 'FORHI' | sib$HRU == 'FORLO') &
+                    sib$ROC != 'SURO')
       
       lLat[, cond] <- lLat[, cond] * v$modL[i]
       
     }
   }
-  
-  
+
   # Separate out flows, loads and concentrations
   qlcLat <- proc_qlc(emc = sib, parV = 'BAS', qLat, lLat) # Basin aggregate
+  
+  # Output lateral flows, loads and concentrations
+  # saveRDS(qlcLat, 'D:/siletz/calib/wq/latQLC.RDS')
 
   latL <- qlcLat[['load']]
 
@@ -201,7 +206,7 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     
     for (j1 in 2 : nrow(rchQ)) {
       
-      j0 = j1 - 1 # previous time step
+      j0 = j1 - 1 # Previous time step
       
       # PAR     PAR           O CONV    UNIT1   UNIT2  
       xIMAT   = IMAT[j1, bcl]         # kg   -> kg
@@ -211,21 +216,25 @@ proc_emcdwc <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
       xVOL    = rchV[j1, bcl]         # m3   -> m3
       xEROVOL = rchE[j1, bcl]         # m3   -> m3
 
+      # Reach outflow concentration_____________________________________________
       # CONC = [IMAT + CONCS * (VOLS - SROVOL)] / (VOL + EROVOL); mg/L
       xCONC <- 10^3 * (xIMAT + xCONCS * (xVOLS - xSROVOL)) / (xVOL + xEROVOL)
       
-      rchC[j1, bcl] <- xCONC
+      # First-order decay (mass loss - NOT CORRECTED FOR TEMP)__________________
+      # DDQALT = DQAL * (1.0 - EXP(-KTOTD)) * VOL = loss of qual from decay
+      # Volume not factored because using outflow concentration as 'mass' term
+      xCONC <- xCONC * exp(-v$kGen / 24)
       
+      # Reach outflow load______________________________________________________
       # ROMAT = SROVOL * CONCS + EROVOL * CONC
       xROMAT <- xSROVOL * xCONCS + xEROVOL * xCONC * 10^-3 # in kg
-      
-      rchL[j1, bcl] <- xROMAT
+
+      # Assign reach concentration and load to the time-series data frame_______
+      rchC[j1, bcl] <- xCONC; rchL[j1, bcl] <- xROMAT
       
     }
   }
-  
-  # @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ #  
-  
+
   # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach
   qlcOut <- list(reach_flows = rchQ, reach_loads = rchL, reach_conc  = rchC)

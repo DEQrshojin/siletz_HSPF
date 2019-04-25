@@ -5,8 +5,9 @@ for (j in 1) {
   # LIBRARIES, SCRIPTS, OPTIONS ----
   options(stringsAsFactors = FALSE)
   
-  sapply(paste0('D:/siletz/scripts/R/', c('run_emcdwc.R','calib_wq_pest.R',
-                                          'read_wq_pars.R')), source)
+  sapply(paste0('D:/siletz/scripts/R/', c('run_emcdwc.R', 'calib_wq_pest.R',
+                                          'read_wq_pars.R', 'check_2017_wq.R')),
+         source)
   
   # COUNTER ----
   countFil <- file('D:/siletz/wqct.txt')
@@ -28,11 +29,13 @@ for (j in 1) {
   
   write.csv(calStat, file = paste0(v$wqDir, "/calStat/", v$pars,
                                    '_calStat_', n, '.csv'), row.names = FALSE)
-
+  
+  check_2017_wq(par = v$pars, n)
+  
   # Copy the control file (confil), rename the copy and move to /calib/parms/wq
   file.copy('D:/siletz/wq_confil.csv',
             paste0('D:/siletz/calib/parms/wq/wq_confil_', v$pars, '_', n, '.csv'))
-    
+  
   # Update the run number and write back to the file
   n = n + 1
   
