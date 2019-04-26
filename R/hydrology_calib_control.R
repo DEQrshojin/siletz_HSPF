@@ -5,42 +5,39 @@
 # shojinaga.ryan@deq.state.or.us, 503-229-5777
 
 for (i in 1) {
+  
   # LIBRARIES ----
   suppressMessages(library(hydroGOF))
   suppressMessages(library(ggplot2))
   suppressMessages(library(scales))
   suppressMessages(library(lubridate))
   suppressMessages(library(stats))
-
+  
   options(warn = -1)
 
-  # LOAD FUNCTIONS ----
+  # Source the functions
+  source('D:/siletz/scr_tst/hydrology/hydrology_calib_functions.R')
+  
+  # FILE PATHS ----
   filPath <- 'D:/siletz/'
   
   datPath <- paste0(filPath, 'calib')
   
   pltPath <- paste0(datPath, '/plots')
-  
-  # Source the functions 
-  sapply(paste0(filPath, 'scripts/R/',
-                c('calib_monNSE.R', 'calib_FDC.R',
-                  'move_hspf_files.R')), source)
-  
+
   # CALIBRATION INPUTS ----
   # Dates
-  strCal <- '2004-10-01'
-  
-  endCal <- '2017-09-30'
+  strCal <- '2004-10-01'; endCal <- '2017-09-30'
   
   strCal <- as.POSIXct(strCal, format = '%Y-%m-%d')
   
   endCal <- as.POSIXct(endCal, format = '%Y-%m-%d')
   
   ts <- data.frame('Date' = seq(strCal, endCal, 3600))
-
+  
   # Read the counter
   countFil = file(paste0(filPath, 'count.txt'))
-
+  
   n = as.numeric(readLines(countFil))  
   
   # LOAD, MERGE, AND PROCESS DATA ----
@@ -51,7 +48,7 @@ for (i in 1) {
   
   # Convert m3/s to cfs
   qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
-
+  
   qGage <- read.csv('D:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
   qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
@@ -101,15 +98,15 @@ for (i in 1) {
   pAud <- data.frame('p1' = as.Date(c('2007-11-25', '2009-08-19'), '%Y-%m-%d'),
                      'p2' = as.Date(c('2015-08-31', '2016-06-07'),'%Y-%m-%d'),
                      stringsAsFactors = FALSE)
-
+  
   datDly[which(datDly[, 1] > pAud[1, 1] & datDly[, 1] < pAud[2, 1]), 4] <- NA
-
+  
   datDly[which(datDly[, 1] > pAud[1, 2] & datDly[, 1] < pAud[2, 2]), 4] <- NA
   
   datDly[is.na(datDly$qSlz_G), 3] <- NA
   
   datDly[is.na(datDly$qSun_G), 5] <- NA
-
+  
   # Hydrologic year
   datDly$HY <- ifelse(datDly$MO >= 10, datDly$YR + 1, datDly$YR)
   
@@ -128,43 +125,43 @@ for (i in 1) {
       
     }
   }
-
+  
   datDly$Mndt <- as.Date(paste0(datDly$YR, '-',
                                 ifelse(datDly$MO < 10, 0, ''),
                                 datDly$MO, '-01'), '%Y-%m-%d')
-
+  
   datDly$qSun_M <- ifelse(datDly$qSun_M == 0, 1e-6, datDly$qSun_M)
-    
+  
   # MEAN MONTHLY VOLUMES ----
   datMnt <- aggregate(datDly[, 2 : 5], by = list(datDly$Mndt), mean,
                       na.rm = TRUE)
   
   colnames(datMnt)[1] <- 'Date'
-
+  
   dlyPrior2 <- as.Date('2014-10-01', '%Y-%m-%d')
   
   # Set the zeros in Sunshine Gage data to NA
   datMnt[is.nan(datMnt[, 4]), 4 : 5] <- NA
-
+  
   # Convert to 1000 x AF (1 cfs = 1.98347 AF/day)
   datMnt[, 2 : 5] <- datMnt[, 2 : 5] * 1.98347 / 1000
-
+  
   # Sunshine gage data with only daily data, multiply the volume by 24 (hours)
   datMnt$YR <- year(datMnt$Date)
   
   datMnt$MN <- month(datMnt$Date)
   
   datMnt$HY <- ifelse(datMnt$MN < 10, datMnt$YR, datMnt$YR + 1)
-
+  
   # QUANTILES ----
   pct <- c(0.10, 0.25, 0.50, 0.75, 0.90)
   
   qntSlz <- quantile(datDly$qSlz_G, pct, na.rm = TRUE)
-
+  
   qntSun <- quantile(datDly$qSun_G, pct, na.rm = TRUE)
   
   pcNm <- names(qntSun)
-
+  
   # PEAK STORM FLOWS ---- 
   qStm <- read.csv('D:/siletz/pest/stmObs.csv', stringsAsFactors = FALSE)
   
@@ -178,56 +175,48 @@ for (i in 1) {
   
   qStmSun <- merge(qStm[qStm$group == 'qstmsn', ], datDly, by.x = 'Date',
                    by.y = 'Date', all.x = TRUE, all.y = FALSE)
-
+  
   # PLOT TIME SERIES ----
   slzPlot = ggplot(data = datDly) +
-    geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
-    geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
-    # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
-    #            color = 'darkblue') + 
-    # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
-    #            color = 'darkred') + 
-    scale_y_log10(limits = c(50, 50000), labels = comma) +
-    xlab("Day of the year (Oct 01 to Sep 30)") + ylab("Flow (cfs)") +
-    facet_wrap(~ HY, ncol = 4) + 
-    geom_hline(yintercept = qntSlz[1], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSlz[2], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSlz[3], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSlz[4], size = 0.4, linetype = 2) +
-    geom_hline(yintercept = qntSlz[5], size = 0.4, linetype = 2) +
-    annotate("text", 330, qntSlz[1], label = pcNm[1], vjust = 0, size = 3.0) +
-    # annotate("text", 330, qntSlz[2], label = pcNm[2], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) +
-    # annotate("text", 330, qntSlz[4], label = pcNm[4], vjust = 0, size = 3.0) + 
-    annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
-
-  # sunPlot = ggplot(data = datDly) +
-  #   geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
-  #   geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
-  #   geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
-  #              color = 'darkblue') + 
-  #   geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
-  #              color = 'darkred') + 
-  #   scale_y_log10(limits = c(0.1, 5000), labels = comma) +
-  #   xlab("Date") + ylab("Flow (cfs)") +
-  #   facet_wrap(~ HY, ncol = 3) # + 
-    # geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSun[2], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSun[4], size = 0.4, linetype = 2) +
-    # geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
-    # annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
-    # annotate("text", 330, qntSun[2], label = pcNm[2], vjust = 0, size = 3.0) + 
-    # annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) + 
-    # annotate("text", 330, qntSun[4], label = pcNm[4], vjust = 0, size = 3.0) + 
-    # annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
+            geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
+            geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
+            # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
+            #            color = 'darkblue') + 
+            # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
+            #            color = 'darkred') + 
+            scale_y_log10(limits = c(50, 50000), labels = comma) +
+            xlab("Day of the year (Oct 01 to Sep 30)") + ylab("Flow (cfs)") +
+            facet_wrap(~ HY, ncol = 4) + 
+            geom_hline(yintercept = qntSlz[1], size = 0.4, linetype = 2) +
+            geom_hline(yintercept = qntSlz[3], size = 0.4, linetype = 2) +
+            geom_hline(yintercept = qntSlz[5], size = 0.4, linetype = 2) +
+            annotate("text", 330, qntSlz[1], label = pcNm[1], vjust = 0, size = 3.0) +
+            annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) +
+            annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
+  
+  sunPlot = ggplot(data = datDly) +
+            geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
+            geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
+            # geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
+            #            color = 'darkblue') +
+            # geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
+            #            color = 'darkred') +
+            scale_y_log10(limits = c(0.1, 5000), labels = comma) +
+            xlab("Date") + ylab("Flow (cfs)") +
+            facet_wrap(~ HY, ncol = 4) +
+            geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
+            geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
+            geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
+            annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
+            annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) +
+            annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
   
   ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
          path = pltPath, width = 10, height = 10 * (3 / 4), dpi = 300, units = 'in')  
   
-  # ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
-  #        path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')  
-    
+  ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
+         path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')
+  
   # CALIBRATION COMPONENTS ----
   # TIME (MATCHING) DEPENDENT:
   
@@ -237,14 +226,14 @@ for (i in 1) {
   
   dayNSESun <- round(NSE(datDly$qSun_M, datDly$qSun_G,
                          na.rm = TRUE, FUN = log), 3)
-
+  
   # - Monthly NSE         (12 *  12 =  144 observations)
   mntNSESlz <- round(NSE(datMnt$qSlz_M, datMnt$qSlz_G,
                          na.rm = TRUE, FUN = NULL), 3)
   
   mntNSESun <- round(NSE(datMnt$qSun_M, datMnt$qSun_G,
                          na.rm = TRUE, FUN = NULL), 3)
-
+  
   # - Peak Storm Flows (2 x 150 = 300 observations)
   stmNSESlz <- round(NSE(qStmSlz$qSlz_M, qStmSlz$qSlz_G,
                          na.rm = TRUE, FUN = log), 3)
@@ -259,7 +248,7 @@ for (i in 1) {
   
   fdcNSESun = round(calib_FDC(datDly$qSun_G, datDly$qSun_M, 
                               pltPath, 'sun', n), 3)
-
+  
   # - Annual volume error
   datYrl <- aggregate(datMnt[, 2 : 5], by = list(datMnt$HY), sum, na.rm = FALSE)
   
@@ -268,10 +257,10 @@ for (i in 1) {
   colnames(datYrl)[1] <- 'Date'
   
   datYrl$SZErr <- round(100 * (datYrl$qSlz_M - datYrl$qSlz_G) /
-                               datYrl$qSlz_G, 1)
+                          datYrl$qSlz_G, 1)
   
   datYrl$SnErr <- round(100 * (datYrl$qSun_M - datYrl$qSun_G) /
-                               datYrl$qSun_G, 1)
+                          datYrl$qSun_G, 1)
   
   # Total Percent BIAS (PBIAS)
   volTotal <- colSums(datYrl[, 2 : 5], na.rm = TRUE)
@@ -279,7 +268,7 @@ for (i in 1) {
   pBallSlz <- round(100 * (volTotal[2] - volTotal[1]) / volTotal[1], 1)
   
   pBallSun <- round(100 * (volTotal[4] - volTotal[3]) / volTotal[3], 1)
-
+  
   # - Dry season volume error (July - Sept)
   datDry <- datMnt[datMnt$MN %in% c(7, 8, 9), ]
   
@@ -290,7 +279,7 @@ for (i in 1) {
   pBDrySlz <- round(100 * (dryTotal[2] - dryTotal[1]) / volTotal[1], 1)
   
   pBDrySun <- round(100 * (dryTotal[4] - dryTotal[3]) / dryTotal[3], 1)
-
+  
   # Storm (Upper 10% flows)
   datStrSlz <- datDly[datDly$qSlz_G >= qntSlz[5], c(1 : 3)]
   
@@ -308,9 +297,9 @@ for (i in 1) {
   volStrSun <- colSums(datStrSun[, 2 : 3], na.rm = TRUE)
   
   pBStrSlz <- round(100 * (volStrSlz[2] - volStrSlz[1]) / volStrSlz[1], 2)
-    
+  
   pBStrSun <- round(100 * (volStrSun[2] - volStrSun[1]) / volStrSun[1], 2)
-
+  
   calSttOut <- data.frame('dNSESz' = dayNSESlz,
                           'mNSESz' = mntNSESlz,
                           'sNSESz' = stmNSESlz,
@@ -339,6 +328,5 @@ for (i in 1) {
   writeLines(as.character(n), countFil)
   
   close(countFil)
-
-}
   
+}

@@ -7,10 +7,9 @@
 for (i in 1) {
   
   # Source the functions ----
-  sapply(paste0('D:/siletz/scripts/R/',
-                c('initialize_components.R', 'read_pars.R', 'populate_parms.R',
-                  'write_parms_to_csv.R')), source)
-  
+  # source('D:/siletz/scripts/R/hydrology_set_pars.R')
+  source('D:/siletz/scr_tst/hydrology/hydrology_set_pars.R')
+
   # ARGUEMENTS -----------------------------------------------------------------
   parFil <- 'D:/siletz/parms.csv' # Parameter input file
   basn <- 17 # Number of basins
@@ -23,10 +22,10 @@ for (i in 1) {
   comp <- initialize_components(parm, basn, indx) # Add arg for number of basins
 
   # RUN THE PARAMETER SETTING FUNCTION ----
-  comp <- populate_parms(parm, comp)
+  comp <- populate_pars(parm, comp)
   
   # WRITE THE PARAMETERS TO THE CSVS ----
-  write_parms_to_csv(comp)
+  write_pars_to_csv(comp)
 
 }
 
