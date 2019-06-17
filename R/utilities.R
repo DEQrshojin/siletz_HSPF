@@ -1,4 +1,5 @@
 
+#_______________________________________________________________________________
 proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
   # Synopsis ----
@@ -51,7 +52,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
       
     }
     
-    # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----
   } else {
     
     parV = c(parV, 'BAS')
@@ -102,6 +103,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
 }
 
+#_______________________________________________________________________________
 preproc_wq <- function(nmVec = NULL, emcFil = NULL) {
   
   # Synopsis ----
@@ -142,7 +144,7 @@ preproc_wq <- function(nmVec = NULL, emcFil = NULL) {
   
 }
 
-
+#_______________________________________________________________________________
 proc_network_linkage = function(shpFile) {
   
   # Synopsis ----
@@ -227,6 +229,7 @@ proc_network_linkage = function(shpFile) {
   
 }
 
+#_______________________________________________________________________________
 runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
                               emcFil = NULL) {
   
@@ -237,10 +240,9 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
   # Libraries, scripts and options ----
   options(stringsAsFactors = FALSE)
   
-  sapply(c('C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R',
-           'C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R'),
-         source)
-  
+  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
+                c('hydro_year.R', 'day_of_hydro_year.R')), source)
+
   # Load and process data ----
   qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
   
@@ -305,6 +307,7 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
   
 }
 
+#_______________________________________________________________________________
 reduce_qlc <- function(strDte = NULL, endDte = NULL, df2Red = NULL) {
   
   # Synopsis ----
@@ -323,17 +326,18 @@ reduce_qlc <- function(strDte = NULL, endDte = NULL, df2Red = NULL) {
   
 }
 
+#_______________________________________________________________________________
 seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
                              ts = 'none') {
   
   suppressMessages(library(TSA)); suppressMessages(library(ggplot2));
   suppressMessages(library(dplyr)); suppressMessages(library(lubridate))
-  suppressMessages(library(reshape2))
+  suppressMessages(library(reshape2));
   
-  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/General/',
-                c('day_of_hydro_year.R', 'hydro_year.R')), source)
+  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
+                c('hydro_year.R', 'day_of_hydro_year.R')), source)
   
-  # ORGANIZE DATA ----
+  # ORGANIZE DATA 
   names(wqDF) <- c('Date', 'C_mgL')
   
   wqDF <- wqDF %>% mutate(mth = month(Date), day = day(Date))
@@ -387,14 +391,14 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
   qtls$per = (qtls$hmt - 0.5) / 12
   
   f10 <- lm(p10 ~ sin(2 * pi * per) + cos(2 * pi * per) +
-              sin(4 * pi * per) + cos(4 * pi * per) +
-              sin(6 * pi * per) + cos(6 * pi * per), data = qtls)
-  
+                  sin(4 * pi * per) + cos(4 * pi * per) +
+                  sin(6 * pi * per) + cos(6 * pi * per), data = qtls)
+    
   f10 <- round(f10[['coefficients']], 4)
   
   f90 <- lm(p90 ~ sin(2 * pi * per) + cos(2 * pi * per) +
-              sin(4 * pi * per) + cos(4 * pi * per) +
-              sin(6 * pi * per) + cos(6 * pi * per), data = qtls)
+                  sin(4 * pi * per) + cos(4 * pi * per) +
+                  sin(6 * pi * per) + cos(6 * pi * per), data = qtls)
   
   f90 <- round(f90[['coefficients']], 4)
   
@@ -405,17 +409,17 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
     mdDF <- data.frame(Date = seq(wqDF$Date[1], wqDF$Date[nrow(wqDF)], 1))
     
     mdDF <- mdDF %>%
-      mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
-      mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
-      mutate(per = yr + doy / dys) %>%
-      mutate(ifw = f90[2] * sin(2 * pi * per) + f90[3] * cos(2 * pi * per) +
-               f90[4] * sin(4 * pi * per) + f90[5] * cos(4 * pi * per) +
-               f90[6] * sin(6 * pi * per) + f90[7] * cos(6 * pi * per) +
-               f90[1],
-             agw = f10[2] * sin(2 * pi * per) + f10[3] * cos(2 * pi * per) +
-               f10[4] * sin(4 * pi * per) + f10[5] * cos(4 * pi * per) +
-               f10[6] * sin(6 * pi * per) + f10[7] * cos(6 * pi * per) +
-               f10[1])
+            mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
+            mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
+            mutate(per = yr + doy / dys) %>%
+            mutate(ifw = f90[2] * sin(2 * pi * per) + f90[3] * cos(2 * pi * per) +
+                         f90[4] * sin(4 * pi * per) + f90[5] * cos(4 * pi * per) +
+                         f90[6] * sin(6 * pi * per) + f90[7] * cos(6 * pi * per) +
+                         f90[1],
+                   agw = f10[2] * sin(2 * pi * per) + f10[3] * cos(2 * pi * per) +
+                         f10[4] * sin(4 * pi * per) + f10[5] * cos(4 * pi * per) +
+                         f10[6] * sin(6 * pi * per) + f10[7] * cos(6 * pi * per) +
+                         f10[1])
     
   }
   
@@ -426,14 +430,27 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
     # Modify the WQ data for graphing
     wqDF$doy <- day_of_hydro_year(wqDF$Date)
     
-    plt <- ggplot(mdDF, aes(x = doy)) +
-      geom_line(aes(y = ifw), color = 'darkblue') +
-      geom_line(aes(y = agw), color = 'darkred') +
-      geom_point(data = wqDF, aes(x = doy, y = C_mgL), size = 1.2, shape = 2,
-                 stroke = 1.2, color = 'darkred', fill = 'yellow')
+    tmp <- melt(mdDF, id.vars = 'doy', measure.vars = c('ifw', 'agw'),
+                variable.name = 'ROComp', value.name = 'C_mgL')
     
-    ggsave(paste0('seasonal_', par, '.png'), plot = plt, width = 10,
-           height = 7.5, path = 'D:/siletz/calib/wq/seasonal', units = 'in',
+    plt <- ggplot(tmp, aes(x = doy, y = C_mgL, color = ROComp)) + geom_line() +
+           ylab("Concentration (mg/L)") +
+           scale_color_manual(values = c('darkblue', 'darkred'),
+                              labels = c('Interflow', 'Groundwater')) +
+           theme_bw() + theme(legend.position = c(0.45, 0.800),
+                              axis.title.x = element_blank()) +
+           guides(color = guide_legend(title = 'Runoff Component')) +
+           geom_point(data = wqDF, aes(x = doy, y = C_mgL), size = 1.2, shape = 2,
+                      stroke = 0.8, color = 'darkred', fill = 'yellow') +
+           scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
+                                         258, 288, 319, 350),
+                              labels = c('15' = 'O', '46' = 'N', '76' = 'D',
+                                         '107' = 'J', '138' = 'F', '166' = 'M',
+                                         '197' = 'A', '227' = 'M', '258' = 'J',
+                                         '288' = 'J', '319' = 'A', '350' = 'S'))
+    
+    ggsave(paste0('seasonal_', par, '.png'), plot = plt, width = 4.250,
+           height = 4.144, path = 'D:/siletz/calib/wq/seasonal', units = 'in',
            dpi = 300)
     
   }
@@ -444,10 +461,10 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
     wqDF$doy <- day_of_hydro_year(wqDF$Date)
     
     plt <- ggplot(mdDF, aes(x = Date)) +
-      geom_line(aes(y = ifw), color = 'darkblue') +
-      geom_line(aes(y = agw), color = 'darkred') +
-      geom_point(data = wqDF, aes(x = Date, y = C_mgL), size = 1.2,
-                 shape = 2, stroke = 1.2, color = 'darkred', fill = 'yellow')
+           geom_line(aes(y = ifw), color = 'darkblue') +
+           geom_line(aes(y = agw), color = 'darkred') +
+           geom_point(data = wqDF, aes(x = Date, y = C_mgL), size = 1.2,
+                      shape = 2, stroke = 1.2, color = 'darkred', fill = 'yellow')
     
     ggsave(paste0('seasonal_ts_', par, '.png'), plot = plt, width = 10,
            height = 7.5, path = 'D:/siletz/calib/wq/seasonal', units = 'in',
@@ -459,6 +476,7 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
   
 }
 
+#_______________________________________________________________________________
 ro_comp_analysis <- function(roCmp) {
   
   # roPct is the list of basins with percentage of each component of total (hr)
@@ -494,5 +512,52 @@ ro_comp_analysis <- function(roCmp) {
   names(roAll)[1] <- 'Date'
   
   return(roAll)
+  
+}
+
+#_______________________________________________________________________________
+proc_daily_flows <- function(mDat, gDat) {
+  
+  # Synopsis ----
+  # This function takes two files (model and gage data) and returns a data frame
+  # combined data frame of both
+  
+  # Read and aggregate model data ----
+  qData <- readRDS(mDat)
+  
+  qData <- qData[['reach_flows']][, c(1, 12, 5)]
+  
+  qData$Date2 <- as.Date(qData$Date, '%Y-%m-%d %H:%M:%S', tz = 'America/Los_Angeles')
+  
+  qData <- aggregate(qData[, 2 : 3], by = list(qData$Date2), FUN = 'mean')
+  
+  names(qData)[1] <- 'Date'
+  
+  # Convert m3/s to cfs
+  qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
+  
+  # Read and clean up gage data ----
+  qGage <- read.csv(gDat, stringsAsFactors = FALSE)
+  
+  qGage$Date <- as.Date(qGage$Date, '%Y-%m-%d', tz = 'America/Los_Angeles')
+  
+  # Reduce the model data set to the min-max and max-min dates
+  dTrim <- c(max(min(qData$Date), min(qGage$Date)),
+             min(max(qData$Date), max(qGage$Date)))
+  
+  qData <- qData[which(qData$Date >= dTrim[1] & qData$Date <= dTrim[2]), ]
+  
+  qGage <- qGage[which(qGage$Date >= dTrim[1] & qGage$Date <= dTrim[2]), ]
+  
+  calDat <- merge(qData, qGage, by.x = 'Date', by.y = 'Date', all.x = TRUE,
+                  all.y = TRUE)
+  
+  names(calDat) <- c('Datetime', 'qSlz_M', 'qSun_M', 'qSlz_G', 'qSun_G')
+  
+  calDat[, 2 : 5] <- round(calDat[, 2 : 5], 1)
+  
+  calDat <- calDat[, c(1, 2, 4, 3, 5)]
+  
+  return(calDat)
   
 }

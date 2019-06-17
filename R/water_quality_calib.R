@@ -3,9 +3,7 @@
 calib_wq <- function(pars, stns, strD, endD, n) { 
   
   # Synopsis ----
-  
-  
-  
+
   # LIBRARIES, OPTIONS AND FUNCTIONS ----
   options(warn = -1)
   
@@ -14,14 +12,13 @@ calib_wq <- function(pars, stns, strD, endD, n) {
   suppressMessages(library('lubridate'))
   suppressMessages(library('dplyr'))
   
-  sapply(c('C:/Users/rshojin/Desktop/006_scripts/github/General/hydro_year.R',
-           'C:/Users/rshojin/Desktop/006_scripts/github/General/day_of_hydro_year.R'),
-         source)
-  
+  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
+                c('hydro_year.R', 'day_of_hydro_year.R')), source)
+
   plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
   
-  # LOAD WQ OBS DATA ----
-  rchQLC <- readRDS('D:/siletz/calib/wq/rchQLC.RData') # Model flows/loads/conc
+  # LOAD WQ OBS DATA - Model flows/loads/conc ----
+  rchQLC <- readRDS(paste0('D:/siletz/calib/wq/rchQLC_', pars,'.RData')) 
   
   qRO <- runoff_components(strD = strD, endD = endD, wqDir = 'D:/siletz/calib/wq',
                            emcFil = paste0('D:/siletz/emcdwc_', pars, '.csv'))
@@ -142,30 +139,48 @@ calib_wq <- function(pars, stns, strD, endD, n) {
   cal[9, 2 : 3] <- colMeans(datMCC[, c(8, 7)])
   
   cal[9, 4] <- round((100 * (cal[9, 3] - cal[9, 2]) / cal[9, 2]), 2)
-  
+
   # PLOT DATA ----
   pltL <- ggplot(data = datM, aes(x = dohy)) + theme_bw() +
-    geom_line(aes(y = LM), size = 0.5, color = 'darkblue') +
-    geom_point(aes(y = LO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Loads (ton/day)') +
-    # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4)
-    scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
-  
+          geom_line(aes(y = LM, color = 'darkblue'), size = 0.5) +
+          geom_point(aes(y = LO, fill = 'yellow'), color = 'darkred', size = 1.2,
+                     shape = 23, stroke = 1.0) + ylab('Loads (ton/day)') +
+          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) +
+          guides(col = guide_legend(ncol = 1)) +
+          theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
+                legend.title = element_blank(), axis.title.x = element_blank()) +
+          scale_color_manual(values = 'darkblue', labels = 'Model data') +
+          scale_fill_manual(values = 'yellow', labels = 'Observed data') +
+          scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
+                                        258, 288, 319, 350),
+                             labels = c('15' = 'O', '46' = 'N', '76' = 'D',
+                                        '107' = 'J', '138' = 'F', '166' = 'M',
+                                        '197' = 'A', '227' = 'M', '258' = 'J',
+                                        '288' = 'J', '319' = 'A', '350' = 'S'))
+
   ggsave(paste0(pars, '_loads_ts_', n, '.png'), plot = pltL, width = 10,
-         height = 7.5,  path = 'D:/siletz/calib/wq/plots', units = 'in',
+         height = 6.5,  path = 'D:/siletz/calib/wq/plots', units = 'in',
          dpi = 300)
-  
+
   pltC <- ggplot(data = datM, aes(x = dohy)) + theme_bw() +
-    geom_line(aes(y = CM), size = 0.5, color = 'darkblue') +
-    geom_point(aes(y = CO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Day of the Year (Oct 1 to Sep 30)') + ylab('Concentration (mg/L)') +
-    # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4)
-    scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4)
+          geom_line(aes(y = CM, color = 'darkblue'), size = 0.5) +
+          geom_point(aes(y = CO, fill = 'yellow'), color = 'darkred', size = 1.2,
+                     shape = 23, stroke = 1.0) + ylab('Concentration (mg/L)') +
+          scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4) +
+          guides(col = guide_legend(ncol = 1)) +
+          theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
+                legend.title = element_blank(), axis.title.x = element_blank()) +
+          scale_color_manual(values = 'darkblue', labels = 'Model data') +
+          scale_fill_manual(values = 'yellow', labels = 'Observed data') +
+          scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
+                                        258, 288, 319, 350),
+                             labels = c('15' = 'O', '46' = 'N', '76' = 'D',
+                                        '107' = 'J', '138' = 'F', '166' = 'M',
+                                        '197' = 'A', '227' = 'M', '258' = 'J',
+                                        '288' = 'J', '319' = 'A', '350' = 'S'))
   
   ggsave(paste0(pars, '_concs_ts_', n, '.png'), plot = pltC, width = 10, 
-         height = 7.5, path = 'D:/siletz/calib/wq/plots', units = 'in',
+         height = 6.5, path = 'D:/siletz/calib/wq/plots', units = 'in',
          dpi = 300)
   
   corr <- qlc_corr(pars = pars, datM = datM, n = n)
@@ -191,28 +206,26 @@ qlc_corr <- function(pars, datM, n) {
   
   # ALL DATA ----
   plt <- ggplot(data = datM) +
-    geom_point(aes(x = QM, y = LM), size = 0.25, color = 'darkblue') +
-    geom_point(aes(x = QO, y = LO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Flow (cfs)') + ylab('Load (ton/day)') + 
-    scale_x_log10(labels = plain, limits = c(30, 10000)) +
-    scale_y_log10(labels = plain) + theme_bw()
-  # scale_y_continuous(labels = plain) + theme_bw() limits = c(0.001, 0.2000)
-  
-  ggsave(paste0(pars, '_flow_v_load_', n, '.png'), plot = plt, width = 12,
-         height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
+         geom_point(aes(x = QM, y = LM), size = 0.25, color = 'darkblue') +
+         geom_point(aes(x = QO, y = LO), size = 1.2, shape = 23, color = 'darkred',
+                    stroke = 1.0, fill = 'yellow') +
+         xlab('Flow (cfs)') + ylab('Load (ton/day)') + 
+         scale_x_log10(labels = plain, limits = c(30, 10000)) +
+         scale_y_log10(labels = plain) + theme_bw()
+
+  ggsave(paste0(pars, '_flow_v_load_', n, '.png'), plot = plt, width = 5,
+         height = 3.25, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
   
   plt <- ggplot(data = datM) +
-    geom_point(aes(x = QM, y = CM), size = 0.25, color = 'darkblue') +
-    geom_point(aes(x = QO, y = CO), size = 1.2, shape = 23, color = 'darkred',
-               stroke = 1.0, fill = 'yellow') +
-    xlab('Flow (cfs)') + ylab('Concentration (mg/L)') + 
-    scale_x_log10(labels = plain, limits = c(30, 10000)) +
-    scale_y_log10(labels = plain) + theme_bw()
-  # scale_y_continuous(labels = plain) + theme_bw() limits = c(0.003, 1.20)
-  
-  ggsave(paste0(pars, '_flow_v_conc_', n, '.png'), plot = plt, width = 12,
-         height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
+         geom_point(aes(x = QM, y = CM), size = 0.25, color = 'darkblue') +
+         geom_point(aes(x = QO, y = CO), size = 1.2, shape = 23, color = 'darkred',
+                    stroke = 1.0, fill = 'yellow') +
+         xlab('Flow (cfs)') + ylab('Concentration (mg/L)') + 
+         scale_x_log10(labels = plain, limits = c(30, 10000)) +
+         scale_y_log10(labels = plain) + theme_bw()
+
+  ggsave(paste0(pars, '_flow_v_conc_', n, '.png'), plot = plt, width = 5,
+         height = 3.25, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
   
   # PAIRED DATA ----
   datMCC <- datM[complete.cases(datM), 3 : 8]
@@ -224,37 +237,74 @@ qlc_corr <- function(pars, datM, n) {
   qlcCorr <- list(Loads = c(fL$coefficients[2, 1], fL$adj.r.squared, median(fL$residuals)),
                   Concs = c(fC$coefficients[2, 1], fC$adj.r.squared, median(fC$residuals)))
   
-  maxL <- 10^floor(log10(max(max(datMCC$LO), max(datMCC$LM))))
+  # NOx
+  # L121 <- data.frame(x = c(0, 12), y = c(0, 12)) # Load 1-to-1 line
+  # C121 <- data.frame(x = c(0, 1.0), y = c(0, 1.0)) # Conc 1-to-1 line
+  # limsL <- c(0.001, 12); limsC <- c(0.01, 1.0) # Axes limits
+  # axL <- 0.01; ayL <- 1; axC <- 0.03; ayC <- 0.5 # Annotation locations
+
+  # NH3  
+  # L121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
+  # C121 <- data.frame(x = c(0, 0.05), y = c(0, 0.05))
+  # limsL <- c(0.0005, 0.15); limsC <- c(0.003, 0.05)
+  # axL <- 0.001; ayL <- 0.10; axC <- 0.007; ayC <- 0.03
+
+  # TKN
+  L121 <- data.frame(x = c(0, 1.1), y = c(0, 1.1))
+  C121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
+  limsL <- c(0.01, 1.1); limsC <- c(0.05, 0.2)
+  axL <- 0.02; ayL <- 0.8; axC <- 0.055; ayC <- 0.15
   
-  maxC <- 10^ceiling(log10(max(max(datMCC$CO), max(datMCC$CM))))
+  # TP
+  # L121 <- data.frame(x = c(0, 1.5), y = c(0, 1.5))
+  # C121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
+  # limsL <- c(0.001, 1.5); limsC <- c(0.001, 0.15)
+  # axL <- 0.002; ayL <- 0.9; axC <- 0.002; ayC <- 0.09
+   
+  # PO4
+  # L121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
+  # C121 <- data.frame(x = c(0, 0.02), y = c(0, 0.02))
+  # limsL <- c(0.0005, 0.2); limsC <- c(0.004, 0.02)
+  # axL <- 0.001; ayL <- 0.09; axC <- 0.005; ayC <- 0.015
+
+  # TOC
+  # L121 <- data.frame(x = c(0, 20), y = c(0, 20))
+  # C121 <- data.frame(x = c(0, 2.1), y = c(0, 2.1))
+  # limsL <- c(0.1, 20); limsC <- c(0.5, 2.1)
+  # axL <- 1; ayL <- 15; axC <- 0.7; ayC <- 1.5
   
-  L121 <- data.frame(x = c(0, maxL), y = c(0, maxL))
+  # Correlation Annotations
+  lblL <- format_R2(m = unlist(fL$coefficients[[2]]), b = unlist(fL$coefficients[[1]]),
+                    r2 = fL$adj.r.squared)
   
-  C121 <- data.frame(x = c(0, 5.0), y = c(0, 5.0))
-  
+  lblC <- format_R2(m = unlist(fC$coefficients[[2]]), b = unlist(fC$coefficients[[1]]),
+                    r2 = fC$adj.r.squared)
+
   plt <- ggplot(data = datMCC) +
          geom_point(aes(x = LO, y = LM), size = 1.2, shape = 23, color = 'darkred',
                     stroke = 1.0, fill = 'yellow') +
          geom_line(data = L121, aes(x = x, y = y)) + 
          xlab('Observed Loads (tons/day)') + ylab('Modeled Loads (ton/day)') + 
-         scale_x_log10(labels = plain, limits = c(0.01, 10.0)) +
-         scale_y_log10(labels = plain, limits = c(0.01, 10.0)) + theme_bw()
-         # scale_y_continuous(labels = plain) + theme_bw()
-  
-  ggsave(paste0(pars, '_obsmod_loads_', n, '.png'), plot = plt, width = 6,
-         height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
+         scale_x_log10(labels = plain, limits = limsL) +
+         scale_y_log10(labels = plain, limits = limsL) + theme_bw() +
+         annotate('text', x = axL, y = ayL, parse = T, label = lblL, hjust = 0,
+                  size = 3)
+
+  ggsave(paste0(pars, '_obsmod_loads_', n, '.png'), plot = plt, width = 5,
+         height = 3.25, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
   
   plt <- ggplot(data = datMCC) +
          geom_point(aes(x = CO, y = CM), size = 1.2, shape = 23, color = 'darkred',
                     stroke = 1.0, fill = 'yellow') +
          geom_line(data = C121, aes(x = x, y = y)) + 
          xlab('Observed Concentrations (mg/L)') + ylab('Modeled Concentrations (mg/L)') + 
-         scale_x_log10(labels = plain, limits = c(0.05, 5)) +
-         scale_y_log10(labels = plain, limits = c(0.05, 5)) + theme_bw()
-         # scale_y_continuous(labels = plain) + theme_bw()
-  
-  ggsave(paste0(pars, '_obsmod_concs_', n, '.png'), plot = plt, width = 6,
-         height = 6, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
+         scale_x_log10(labels = plain, limits = limsC) +
+         scale_y_log10(labels = plain, limits = limsC) + theme_bw() +
+         annotate('text', x = axC, y = ayC, parse = T, label = lblC, hjust = 0,
+                  size = 3)
+
+  ggsave(paste0(pars, '_obsmod_concs_', n, '.png'), plot = plt, width = 5,
+         height = 3.25, path = 'D:/siletz/calib/wq/plots', units = 'in', dpi = 300)
   
   return(qlcCorr)
   
@@ -310,7 +360,7 @@ check_2017_wq <- function(par, n) {
                      cols = c(14, 6, 11, 7, 13, 13, 10, 15, 8, 10) + 1,
                      stringsAsFactors = FALSE)
   
-  mdDt <- readRDS(paste0('D:/siletz/calib/wq/rchQLC.RData'))
+  mdDt <- readRDS(paste0('D:/siletz/calib/wq/rchQLC_', par,'.RData'))
   
   mdDt <- mdDt[['reach_conc']] %>% mutate(Date2 = as.Date(Date)) %>%
           filter(Date2 %in% dates)
@@ -331,5 +381,28 @@ check_2017_wq <- function(par, n) {
   
   ggsave(paste0(par, '_2017_conc_ts_', n, '.png'), plot = plt, dpi = 300, units = "in",
          path = 'D:/siletz/calib/wq/plots', width = 10, height = 7.5)
+  
+}
+
+#_______________________________________________________________________________
+format_R2 <- function(m = 1, b = 0, r2 = 1) {
+  
+  if (b < 0) { 
+    
+    b = -b
+    
+    eq <- substitute(italic(y) == m %.% italic(x) - b * "," ~~ italic(r)^2 ~ "=" ~ r2, 
+                     list(b = format(b, digits = 2), m = format(m, digits = 2),
+                          r2 = format(r2, digits = 3)))
+    
+  } else {
+    
+    eq <- substitute(italic(y) == m %.% italic(x) + b * "," ~~ italic(r)^2 ~ "=" ~ r2, 
+                     list(b = format(b, digits = 2), m = format(m, digits = 2),
+                          r2 = format(r2, digits = 3)))  
+    
+  }
+  
+  return(as.character(as.expression(eq)))
   
 }

@@ -12,11 +12,12 @@ for (i in 1) {
   suppressMessages(library(scales))
   suppressMessages(library(lubridate))
   suppressMessages(library(stats))
+  suppressMessages(library(reshape2))
   
   options(warn = -1)
 
   # Source the functions
-  source('D:/siletz/scr_tst/hydrology/hydrology_calib_functions.R')
+  source('D:/siletz/scripts/R/hydrology_calib_functions.R')
   
   # FILE PATHS ----
   filPath <- 'D:/siletz/'
@@ -41,10 +42,14 @@ for (i in 1) {
   n = as.numeric(readLines(countFil))  
   
   # LOAD, MERGE, AND PROCESS DATA ----
-  qData <- read.csv('D:/siletz/calib/siletz_out_sed.csv',
-                    stringsAsFactors = FALSE)
+  # qData <- read.csv('D:/siletz/calib/siletz_out_sed.csv',
+  #                   stringsAsFactors = FALSE)
+  # 
+  # qData <- qData[['reach_flows']][, c(1, 12, 4)]
   
-  qData <- qData[, c(1, 12, 4)]
+  qData <- readRDS("D:/siletz/calib/wq/rchQLC.RData")
+  
+  qData <- qData[['reach_flows']][, c(1, 12, 5)]
   
   # Convert m3/s to cfs
   qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
@@ -71,8 +76,7 @@ for (i in 1) {
   
   calDat$Mndt <- as.Date(paste0(calDat$YR, '-',
                                 ifelse(calDat$MN < 10, 0, ''), calDat$MN,
-                                '-01'),
-                         '%Y-%m-%d')
+                                '-01'), '%Y-%m-%d')
   
   calDat <- calDat[complete.cases(calDat$Datetime), ]
   
@@ -172,50 +176,66 @@ for (i in 1) {
   # qStmSlz <- merge
   qStmSlz <- merge(qStm[qStm$group == 'qstmsz', ], datDly, by.x = 'Date',
                    by.y = 'Date', all.x = TRUE, all.y = FALSE)
-  
+
   qStmSun <- merge(qStm[qStm$group == 'qstmsn', ], datDly, by.x = 'Date',
                    by.y = 'Date', all.x = TRUE, all.y = FALSE)
+
+  slzDat <- melt(datDly, id.vars = c('Date', 'HY', 'HDOY'),
+                 measure.vars = c('qSlz_G', 'qSlz_M', 'qSun_G', 'qSun_M'),
+                 value.name = 'flow_cfs', variable.name = 'srce')
   
   # PLOT TIME SERIES ----
-  slzPlot = ggplot(data = datDly) +
-            geom_line(aes(x = HDOY, y = qSlz_M), size = 0.6, color = 'darkblue') +
-            geom_line(aes(x = HDOY, y = qSlz_G), size = 0.6, color = 'darkred') +
-            # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_M), size = 2,
-            #            color = 'darkblue') + 
-            # geom_point(data = qStmSlz, aes(x = HDOY, y = qSlz_G), size = 2,
-            #            color = 'darkred') + 
+  slzPlot = ggplot(data = slzDat[which(slzDat$srce == 'qSlz_G' | slzDat$srce == 'qSlz_M'), ],
+                   aes(x = HDOY, y = flow_cfs, color = srce)) +
+            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) + 
+            scale_color_manual(values = c('darkblue', 'darkred'),
+                               labels = c('Gage data', 'Model data')) +
             scale_y_log10(limits = c(50, 50000), labels = comma) +
-            xlab("Day of the year (Oct 01 to Sep 30)") + ylab("Flow (cfs)") +
-            facet_wrap(~ HY, ncol = 4) + 
+            scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
+                                          258, 288, 319, 350),
+                               labels = c('15' = 'O', '46' = 'N', '76' = 'D',
+                                          '107' = 'J', '138' = 'F', '166' = 'M',
+                                          '197' = 'A', '227' = 'M', '258' = 'J',
+                                          '288' = 'J', '319' = 'A', '350' = 'S')) +
+            ylab("Flow (cfs)") +
             geom_hline(yintercept = qntSlz[1], size = 0.4, linetype = 2) +
             geom_hline(yintercept = qntSlz[3], size = 0.4, linetype = 2) +
             geom_hline(yintercept = qntSlz[5], size = 0.4, linetype = 2) +
             annotate("text", 330, qntSlz[1], label = pcNm[1], vjust = 0, size = 3.0) +
             annotate("text", 330, qntSlz[3], label = pcNm[3], vjust = 0, size = 3.0) +
-            annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0)
+            annotate("text", 330, qntSlz[5], label = pcNm[5], vjust = 0, size = 3.0) +
+            theme_bw() + theme(legend.position = c(0.75, 0.10),
+                               axis.title.x = element_blank()) +
+            guides(color = guide_legend(title = 'Flow data source'))
   
-  sunPlot = ggplot(data = datDly) +
-            geom_line(aes(x = HDOY, y = qSun_M), size = 0.6, color = 'darkblue') +
-            geom_line(aes(x = HDOY, y = qSun_G), size = 0.6, color = 'darkred') +
-            # geom_point(data = qStmSun, aes(x = HDOY, y = qSun_M), size = 2,
-            #            color = 'darkblue') +
-            # geom_point(data = qStmSun, aes(x = HDOY, y = qSun_G), size = 2,
-            #            color = 'darkred') +
+  sunPlot = ggplot(data = slzDat[which(slzDat$srce == 'qSun_G' | slzDat$srce == 'qSun_M'), ],
+                   aes(x = HDOY, y = flow_cfs, color = srce)) +
+            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) + 
+            scale_color_manual(values = c('darkblue', 'darkred'),
+                               labels = c('Gage data', 'Model data')) +
             scale_y_log10(limits = c(0.1, 5000), labels = comma) +
-            xlab("Date") + ylab("Flow (cfs)") +
-            facet_wrap(~ HY, ncol = 4) +
+            scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
+                                          258, 288, 319, 350),
+                               labels = c('15' = 'O', '46' = 'N', '76' = 'D',
+                                          '107' = 'J', '138' = 'F', '166' = 'M',
+                                          '197' = 'A', '227' = 'M', '258' = 'J',
+                                          '288' = 'J', '319' = 'A', '350' = 'S')) +
+            ylab("Flow (cfs)") +
             geom_hline(yintercept = qntSun[1], size = 0.4, linetype = 2) +
             geom_hline(yintercept = qntSun[3], size = 0.4, linetype = 2) +
             geom_hline(yintercept = qntSun[5], size = 0.4, linetype = 2) +
             annotate("text", 330, qntSun[1], label = pcNm[1], vjust = 0, size = 3.0) +
             annotate("text", 330, qntSun[3], label = pcNm[3], vjust = 0, size = 3.0) +
-            annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0)
+            annotate("text", 330, qntSun[5], label = pcNm[5], vjust = 0, size = 3.0) +
+            theme_bw() + theme(legend.position = c(0.75, 0.10),
+                               axis.title.x = element_blank()) +
+            guides(color = guide_legend(title = 'Flow data source'))
   
   ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
-         path = pltPath, width = 10, height = 10 * (3 / 4), dpi = 300, units = 'in')  
+         path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')  
   
   ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
-         path = pltPath, width = 20, height = 20, dpi = 300, units = 'in')
+         path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')
   
   # CALIBRATION COMPONENTS ----
   # TIME (MATCHING) DEPENDENT:

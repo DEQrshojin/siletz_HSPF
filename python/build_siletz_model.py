@@ -111,9 +111,7 @@ pcpData = pd.read_csv('D:/siletz/inputs/pcp.csv')
 
 petData = pd.read_csv('D:/siletz/inputs/pet.csv')
     
-ts_to_wdmFile(wdmFile = wdmFile,
-              pcpData = pcpData,
-              petData = petData)
+ts_to_wdmFile(wdmFile = wdmFile, pcpData = pcpData, petData = petData)
 
 # Read the data from the WDM file
 wdm = WDMUtil(verbose = True, messagepath = mssgpath)

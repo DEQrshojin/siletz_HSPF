@@ -24,28 +24,19 @@ calib_FDC = function(ggeDat, mdlDat, pltPath, site, n) {
   
   flwDurP = flwDurP[flwDurP$variable != 'PCT', ]
   
-  fdcPlot = ggplot(data = flwDurP) +
-    geom_line(aes(x = revPCT, y = value,
-                  group = variable,
-                  color = variable),
-              size = 1.1) + xlab("Probability of Exceedence") +
-    scale_x_continuous(labels = c('0' = '0', '0.25' = '25',
-                                  '0.5' = '50', '0.75' = '75',
-                                  '100' = '100')) + 
-    ylab("Flow (cfs)") + theme_bw() +
-    scale_y_log10(labels = comma) +
-    theme(legend.position = c(0.2, 0.8),
-          panel.grid.minor = element_blank(),
-          axis.text.x = element_text(size = 13),
-          axis.title.y = element_text(size = 13),
-          axis.text.y = element_text(size = 13),
-          plot.title = element_text(size = 13,
-                                    hjust = 0.5)) +
-    annotate("text", x = 0.75, y = 50, size = 10,
-             label = paste0('RUN ', n), hjust = 0)
+  fdcPlot = ggplot(data = flwDurP) + 
+            geom_line(aes(x = revPCT, y = value, group = variable, color = variable),
+                      size = 0.75) + xlab("Probability of Exceedence") +
+            scale_color_manual(values = c('darkred', 'darkblue'),
+                               labels = c('Model data', 'Gage data')) +
+            ylab("Flow (cfs)") + theme_bw() + scale_y_log10(labels = comma) +
+            guides(color = guide_legend(title = 'Flow data source')) + 
+            theme(legend.position = c(0.75, 0.10)) +
+            scale_x_continuous(labels = c('0' = '0', '0.25' = '25', '0.5' = '50',
+                                          '0.75' = '75', '100' = '100'))
   
   ggsave(filename = paste0('fdc_plot_', site, '_', n, '.png'), plot = fdcPlot,
-         path = pltPath, width = 15, height = 10, dpi = 300, units = 'in')
+         path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')
   
   return(fdcNSE)
   

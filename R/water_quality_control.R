@@ -4,8 +4,8 @@ for (j in 1) {
   # LIBRARIES, SCRIPTS, OPTIONS ----
   options(stringsAsFactors = FALSE)
   
-  sapply(paste0('D:/siletz/scripts/R/', c('water_quality_run.R', 'utilities.R',
-                                          'water_quality_calib.R')), source)
+  sapply(paste0('D:/siletz/scripts/R/',c('water_quality_run.R', 'utilities.R',
+                                         'water_quality_calib.R')), source)
   
   # COUNTER ----
   countFil <- file('D:/siletz/wqct.txt')
@@ -18,9 +18,15 @@ for (j in 1) {
   # Run the master water quality control script ----
   rchQLC <- run_wq(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
                    emcFil = v$emcFil, basFil = v$basFil)
+
+  saveRDS(rchQLC, paste0('D:/siletz/calib/wq/rchQLC_', v$pars,'.RData'))
   
-  saveRDS(rchQLC, 'D:/siletz/calib/wq/rchQLC.RData')
-  
+  # Run master WQ control script for lateral flows and load only! ----
+  # latQLC <- proc_wq_latQLC(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
+  #                          emcFil = v$emcFil)
+  # 
+  # saveRDS(latQLC, paste0('D:/siletz/calib/wq/latQLC_', v$pars,'.RData'))
+
   # calib_emcdwc ----
   calStat <- calib_wq(pars = v$pars, stns = v$stns, strD = v$strD, endD = v$endD,
                       n = n)
