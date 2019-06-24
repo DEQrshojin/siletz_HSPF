@@ -20,30 +20,30 @@ for (j in 1) {
                    emcFil = v$emcFil, basFil = v$basFil)
 
   saveRDS(rchQLC, paste0('D:/siletz/calib/wq/rchQLC_', v$pars,'.RData'))
-  
+
   # Run master WQ control script for lateral flows and load only! ----
   # latQLC <- proc_wq_latQLC(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
   #                          emcFil = v$emcFil)
-  # 
+  #
   # saveRDS(latQLC, paste0('D:/siletz/calib/wq/latQLC_', v$pars,'.RData'))
 
   # calib_emcdwc ----
   calStat <- calib_wq(pars = v$pars, stns = v$stns, strD = v$strD, endD = v$endD,
                       n = n)
-  
+
   write.csv(calStat, file = paste0(v$wqDir, "/calStat/", v$pars,
                                    '_calStat_', n, '.csv'), row.names = FALSE)
-  
+
   # Check against the 2017 WQ data if run past 2017-07-01
   if (v$endD >= as.Date('2017-07-01', '%Y-%m-%d')) {check_2017_wq(par = v$pars, n)}
 
   # Copy the control file (confil), rename the copy and move to /calib/parms/wq
   file.copy('D:/siletz/wq_confil.csv',
             paste0('D:/siletz/calib/parms/wq/wq_confil_', v$pars, '_', n, '.csv'))
-  
+
   # Update the run number and write back to the file
   n = n + 1
-  
+
   writeLines(as.character(n), countFil)
   
   close(countFil)

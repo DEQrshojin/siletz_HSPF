@@ -34,7 +34,7 @@ calib_wq <- function(pars, stns, strD, endD, n) {
   col <- which(names(rchQLC$reach_flows) == basin)
   
   # AGGREGATE MODEL DATA TO DAILY ----
-  aggFun <- c('mean', 'sum', 'mean')
+  aggFun <- c('mean', 'sum', 'mean', 'mean')
   
   dlyQLC <- list()
   
@@ -58,7 +58,7 @@ calib_wq <- function(pars, stns, strD, endD, n) {
   # Extract flows/loads/concentrations
   datM <- data.frame(dlyQLC[['reach_flows']],
                      LM = dlyQLC[['reach_loads']]$Bas14,
-                     CM = dlyQLC[['reach_conc']]$Bas14)
+                     CM = dlyQLC[['rOut_conc']]$Bas14)
   
   names(datM)[2] <- 'QM'
   
@@ -166,7 +166,7 @@ calib_wq <- function(pars, stns, strD, endD, n) {
           geom_line(aes(y = CM, color = 'darkblue'), size = 0.5) +
           geom_point(aes(y = CO, fill = 'yellow'), color = 'darkred', size = 1.2,
                      shape = 23, stroke = 1.0) + ylab('Concentration (mg/L)') +
-          scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4) +
+          scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) +
           guides(col = guide_legend(ncol = 1)) +
           theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
                 legend.title = element_blank(), axis.title.x = element_blank()) +
@@ -195,9 +195,8 @@ calib_wq <- function(pars, stns, strD, endD, n) {
 qlc_corr <- function(pars, datM, n) {
   
   # Synopsis ----
-  
-  
-  
+  # Analyzes and plots loads/conc vs. flow and pair-wise loads/conc relationships
+
   suppressMessages(library('ggplot2'))
   suppressMessages(library('stats'))
   suppressMessages(library('dplyr'))
@@ -237,42 +236,48 @@ qlc_corr <- function(pars, datM, n) {
   qlcCorr <- list(Loads = c(fL$coefficients[2, 1], fL$adj.r.squared, median(fL$residuals)),
                   Concs = c(fC$coefficients[2, 1], fC$adj.r.squared, median(fC$residuals)))
   
-  # NOx
-  # L121 <- data.frame(x = c(0, 12), y = c(0, 12)) # Load 1-to-1 line
-  # C121 <- data.frame(x = c(0, 1.0), y = c(0, 1.0)) # Conc 1-to-1 line
-  # limsL <- c(0.001, 12); limsC <- c(0.01, 1.0) # Axes limits
-  # axL <- 0.01; ayL <- 1; axC <- 0.03; ayC <- 0.5 # Annotation locations
-
-  # NH3  
-  # L121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
-  # C121 <- data.frame(x = c(0, 0.05), y = c(0, 0.05))
-  # limsL <- c(0.0005, 0.15); limsC <- c(0.003, 0.05)
-  # axL <- 0.001; ayL <- 0.10; axC <- 0.007; ayC <- 0.03
-
-  # TKN
-  L121 <- data.frame(x = c(0, 1.1), y = c(0, 1.1))
-  C121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
-  limsL <- c(0.01, 1.1); limsC <- c(0.05, 0.2)
-  axL <- 0.02; ayL <- 0.8; axC <- 0.055; ayC <- 0.15
+  if (pars == 'NOx') {
+    L121 <- data.frame(x = c(0, 12), y = c(0, 12)) # Load 1-to-1 line
+    C121 <- data.frame(x = c(0, 1.0), y = c(0, 1.0)) # Conc 1-to-1 line
+    limsL <- c(0.001, 12); limsC <- c(0.01, 1.2) # Axes limits
+    axL <- 0.01; ayL <- 1; axC <- 0.03; ayC <- 0.5 # Annotation locations
+  }
   
-  # TP
-  # L121 <- data.frame(x = c(0, 1.5), y = c(0, 1.5))
-  # C121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
-  # limsL <- c(0.001, 1.5); limsC <- c(0.001, 0.15)
-  # axL <- 0.002; ayL <- 0.9; axC <- 0.002; ayC <- 0.09
+  if (pars == 'NH3') {
+    L121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
+    C121 <- data.frame(x = c(0, 0.05), y = c(0, 0.05))
+    limsL <- c(0.0005, 0.15); limsC <- c(0.003, 0.05)
+    axL <- 0.001; ayL <- 0.10; axC <- 0.007; ayC <- 0.03
+  }
+
+  if(pars == 'TKN') {
+    L121 <- data.frame(x = c(0, 1.1), y = c(0, 1.1))
+    C121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
+    limsL <- c(0.01, 1.1); limsC <- c(0.05, 0.2)
+    axL <- 0.02; ayL <- 0.8; axC <- 0.055; ayC <- 0.15
+  }
+
+  if(pars == 'TP') {
+    L121 <- data.frame(x = c(0, 1.5), y = c(0, 1.5))
+    C121 <- data.frame(x = c(0, 0.15), y = c(0, 0.15))
+    limsL <- c(0.001, 1.5); limsC <- c(0.001, 0.15)
+    axL <- 0.002; ayL <- 0.9; axC <- 0.002; ayC <- 0.09
+  }
+  
+  if(pars == 'PO4') {
+    L121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
+    C121 <- data.frame(x = c(0, 0.02), y = c(0, 0.02))
+    limsL <- c(0.0005, 0.2); limsC <- c(0.004, 0.02)
+    axL <- 0.001; ayL <- 0.09; axC <- 0.005; ayC <- 0.015
+  }
+
+  if(pars == 'OrC') {
+    L121 <- data.frame(x = c(0, 20), y = c(0, 20))
+    C121 <- data.frame(x = c(0, 2.1), y = c(0, 2.1))
+    limsL <- c(0.1, 20); limsC <- c(0.5, 2.1)
+    axL <- 1; ayL <- 15; axC <- 0.7; ayC <- 1.5
+  }
    
-  # PO4
-  # L121 <- data.frame(x = c(0, 0.2), y = c(0, 0.2))
-  # C121 <- data.frame(x = c(0, 0.02), y = c(0, 0.02))
-  # limsL <- c(0.0005, 0.2); limsC <- c(0.004, 0.02)
-  # axL <- 0.001; ayL <- 0.09; axC <- 0.005; ayC <- 0.015
-
-  # TOC
-  # L121 <- data.frame(x = c(0, 20), y = c(0, 20))
-  # C121 <- data.frame(x = c(0, 2.1), y = c(0, 2.1))
-  # limsL <- c(0.1, 20); limsC <- c(0.5, 2.1)
-  # axL <- 1; ayL <- 15; axC <- 0.7; ayC <- 1.5
-  
   # Correlation Annotations
   lblL <- format_R2(m = unlist(fL$coefficients[[2]]), b = unlist(fL$coefficients[[1]]),
                     r2 = fL$adj.r.squared)
@@ -314,11 +319,9 @@ qlc_corr <- function(pars, datM, n) {
 check_2017_wq <- function(par, n) {
   
   # Synopsis ----
-  
-  
-  
-  # Use upper case for PAR where needed (i.e., TP, NOx, PO4)
-  
+  # Checks HSPF output to the 2017 WQ monitoring data to make sure summer/fall
+  # seasonal signature is captured to the best degree possible.
+
   library(dplyr); library(reshape2); library(ggplot2)
   
   # IMPORT AMBIENT WATER QUALITY DATA ----
@@ -362,7 +365,7 @@ check_2017_wq <- function(par, n) {
   
   mdDt <- readRDS(paste0('D:/siletz/calib/wq/rchQLC_', par,'.RData'))
   
-  mdDt <- mdDt[['reach_conc']] %>% mutate(Date2 = as.Date(Date)) %>%
+  mdDt <- mdDt[['rOut_conc']] %>% mutate(Date2 = as.Date(Date)) %>%
           filter(Date2 %in% dates)
   
   mdDt <- aggregate(mdDt[2 : (length(mdDt) - 1)], by = list(mdDt$Date2), FUN = mean)
@@ -395,13 +398,9 @@ format_R2 <- function(m = 1, b = 0, r2 = 1) {
                      list(b = format(b, digits = 2), m = format(m, digits = 2),
                           r2 = format(r2, digits = 3)))
     
-  } else {
-    
-    eq <- substitute(italic(y) == m %.% italic(x) + b * "," ~~ italic(r)^2 ~ "=" ~ r2, 
+  } else {eq <- substitute(italic(y) == m %.% italic(x) + b * "," ~~ italic(r)^2 ~ "=" ~ r2, 
                      list(b = format(b, digits = 2), m = format(m, digits = 2),
-                          r2 = format(r2, digits = 3)))  
-    
-  }
+                          r2 = format(r2, digits = 3)))}
   
   return(as.character(as.expression(eq)))
   

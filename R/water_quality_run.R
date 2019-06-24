@@ -173,14 +173,17 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     qlcTmp <- proc_wq(restart = restart, strD = dts[n, 1], endD = dts[n, 2],
                       wqDir = wqDir, emcFil = emcFil, basFil = basFil)
     
-    # Restart = list of 1st line of previous iteration of rchL and rchC  
+    # Restart = list of last line of previous iteration of values for each item
+    # In the case of RAT & ROS, only last line was passed back into run_wq()
     restart <- list(ldsRst = qlcTmp[[2]][nrow(qlcTmp[[2]]), ],
-                    conRst = qlcTmp[[3]][nrow(qlcTmp[[3]]), ])
+                    conRst = qlcTmp[[3]][nrow(qlcTmp[[3]]), ],
+                    roCRst = qlcTmp[[4]][nrow(qlcTmp[[4]]), ],
+                    RATRst = qlcTmp[[5]], ROSRst = qlcTmp[[6]])
     
     # Set the first instance of the output list if n = 1
     if (n == 1) {qlcOut <- qlcTmp} else { 
       
-      for (o in 1 : 3) { 
+      for (o in 1 : 4) {# Ignore the RAT and ROS restarts
         
         qlcOut[[o]] <- rbind(qlcOut[[o]][-nrow(qlcOut[[o]]), ], qlcTmp[[o]])
         
@@ -194,6 +197,8 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     cat(paste0('Year: ', yrs[n], " processed in ", pTime, ' minutes\n'))
     
   }
+  
+  qlcOut[[5]] <- qlcOut[[6]] <- NULL
   
   cat(paste0('Total processing time: ', tTime, ' minutes\n'))
   
@@ -348,43 +353,57 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # Basin lateral loads  
   latL <- initialize_QLC_df(nOrd = nOrd, modDF = latL, zero = FALSE)
   
-  RAT <- IMAT <- rchC <- rchS <- rchE <- rchO <- rchL
+  RAT <- JS <- COJS <- IMAT <- rchC <- rchS <- rchE <- rchO <- rchN <- rchL
   
   # Restart for rchC and rchL ----
   if (length(restart) > 1) {
     
-    rchL[1, ] <- restart[['ldsRst']]
+    rchL[1, ] <- restart[['ldsRst']]; rchC[1, ] <- restart[['conRst']]
     
-    rchC[1, ] <- restart[['conRst']]
+    rchN[1, ] <- restart[['roCRst']]; RAT[1, ] <- restart[['RATRst']]
     
+    rchS[1, ] <- restart[['ROSRst']]
+
   }
-  
-  # Process reach flows and volume ----
-  # Convert volumes from Mm3 to m3
+  # ____________________________________________________________________________
+  # ADCALC SUBROUTINES ----
+  # Process reach flows and volume; convert volumes from Mm3 to m3
   rchO[, 2 : length(rchQ)] <- rchQ[, 2 : length(rchQ)] * 3600 # Rch Out Vol (m3)
   
+  # Need to set zero outflow volume to 1 (causes NaN otherwise)
   rchV[, 2 : length(rchV)] <- rchV[, 2 : length(rchV)] * 10^6 # Rch Vol (m3)
-  
-  # RAT AND CRRAT
-  RAT[, 2 : length(rchV)] <- rchV[, 2 : length(rchV)] / rchO[, 2 : length(rchO)]
-  
-  meanRAT <- colMeans(RAT[, 2 : length(RAT)], na.rm = T)
 
-  # Calculate JS and COJS
-  JS <- ifelse(meanRAT / 1.5 >= 1, 1, meanRAT / 1.5)
-  
-  COJS <- 1 - JS
-  
-  # Convert reach flow rate (m3/s) to reach out volume (m3/dt)
-  for (i in 2 : length(rchS)) {
+  # Calculate the adcalc variables
+  for (s in 2 : length(RAT)) {
+
+    rchO[, s] <- ifelse(rchO[, s] == 0, 1, rchO[, s])
     
-    rchS[, i] <- JS[i - 1] * rchQ[, i] * 3600
+    # RAT is the ratio of reach volume @ ivl start to reach outflow volume @ ivl
+    RAT[2 : nrow(RAT), s] <- rchV[1 : (nrow(rchV) - 1), s] / 
+                             rchO[1 : (nrow(rchO) - 1), s]  
+
+    # Calculate JS and COJS; CRRAT defined as 1.5 as per default in HSPF
+    # JS = RAT / CRRAT if less than 1, and 1 if greater than 1
+
+    # RCH      *1*   2    3   *4*  *5*       6 : 16    17
+    CRRAT <- c(2.0, 1.5, 1.5, 2.3, 2.1, rep(1.5, 11), 1.7)
     
-    rchE[, i] <- COJS[i - 1] * rchQ[, i] * 3600
+    JS[, s] <- RAT[, s] / CRRAT[s - 1]
     
+    JS[, s] <- ifelse(JS[, s] > 1, 1, JS[, s])
+    
+    COJS[, s] <- 1 - JS[, s]
+    
+    # Calculate Reach Outflow Volumes at start (S) and end (E) of timestep
+    rchS[2 : nrow(rchS), s] <- JS[2 : nrow(rchS), s] *
+                               rchQ[1 : (nrow(rchV) - 1), s] * 3600
+    
+    rchE[, s] <- COJS[, s] * rchQ[, s] * 3600
+
   }
+  # ____________________________________________________________________________
   
-  # Import reach processing information
+  # Import reach processing information ----
   lnks <- proc_network_linkage(basFil)
   
   # Calculate reach outflow loads and concentrations ----
@@ -423,7 +442,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
       # Reach outflow concentration_____________________________________________
       # CONC = [IMAT + CONCS * (VOLS - SROVOL)] / (VOL + EROVOL); mg/L
       xCONC <- 10^3 * (xIMAT + xCONCS * (xVOLS - xSROVOL)) / (xVOL + xEROVOL)
-      
+
       # First-order decay (mass loss - NOT CORRECTED FOR TEMP)__________________
       # DDQALT = DQAL * (1.0 - EXP(-KTOTD)) * VOL = loss of qual from decay
       # Volume not factored because using outflow concentration as 'mass' term
@@ -434,14 +453,48 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
       xROMAT <- xSROVOL * xCONCS + xEROVOL * xCONC * 10^-3 # in kg
       
       # Assign reach concentration and load to the time-series data frame_______
-      rchC[j1, bcl] <- xCONC; rchL[j1, bcl] <- xROMAT
+      # Reach concentration
+      rchC[j1, bcl] <- xCONC
       
+      # Reach outflow loads
+      rchL[j1, bcl] <- xROMAT
+
+    } # j1 loops through the rows of the DFs
+    
+    # Warn if negative reach loads calculated; if so need to adjust CRRAT
+    if (any(rchL[, bcl] < 0)) {
+      
+      print(paste0('Warning: negative concentrations in Reach ', bsn))
+
     }
-  }
+    
+    # Reach outflow concentration
+    rchN[, bcl] <- rchL[, bcl] / (rchQ[, bcl] * 3.6)
+
+  }   # i  loops through the basin lateral loads (n = number of basins)
+  
+  # These outputs are for checking the model performance ----
+  # dir <- 'D:/siletz/scripts/R/wVar/'
+  # write.csv(rchL, paste0(dir, 'rchL.csv'), row.names = F)
+  # write.csv(rchC, paste0(dir, 'rchC.csv'), row.names = F)
+  # write.csv(rchN, paste0(dir, 'rchN.csv'), row.names = F)
+  # write.csv(IMAT, paste0(dir, 'IMAT.csv'), row.names = F)
+  # write.csv(RAT, paste0(dir, 'RAT.csv'), row.names = F)
+  # write.csv(rchS, paste0(dir, 'rchS.csv'), row.names = F)
+  # write.csv(rchE, paste0(dir, 'rchE.csv'), row.names = F)
+  # write.csv(rchO, paste0(dir, 'rchO.csv'), row.names = F)
+  # write.csv(rchV, paste0(dir, 'rchV.csv'), row.names = F)
+  # write.csv(rchQ, paste0(dir, 'rchQ.csv'), row.names = F)
+  # These outputs are for checking the model performance ----
   
   # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach
-  qlcOut <- list(reach_flows = rchQ, reach_loads = rchL, reach_conc  = rchC)
+  qlcOut <- list(reach_flows = rchQ,          # 1
+                 reach_loads = rchL,          # 2
+                 reach_conc = rchC,           # 3
+                 rOut_conc = rchN,            # 4
+                 RATRst = RAT[nrow(RAT), ],   # 5
+                 ROSRst = rchS[nrow(rchS), ]) # 6
 
   return(qlcOut)
   
