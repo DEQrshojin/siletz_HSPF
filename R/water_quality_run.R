@@ -473,7 +473,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
 
   }   # i  loops through the basin lateral loads (n = number of basins)
   
-  # These outputs are for checking the model performance ----
+  # OPTIONAL: Outputs are for checking the model performance ----
   # dir <- 'D:/siletz/scripts/R/wVar/'
   # write.csv(rchL, paste0(dir, 'rchL.csv'), row.names = F)
   # write.csv(rchC, paste0(dir, 'rchC.csv'), row.names = F)
@@ -485,7 +485,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # write.csv(rchO, paste0(dir, 'rchO.csv'), row.names = F)
   # write.csv(rchV, paste0(dir, 'rchV.csv'), row.names = F)
   # write.csv(rchQ, paste0(dir, 'rchQ.csv'), row.names = F)
-  # These outputs are for checking the model performance ----
+  # These outputs are for checking the model performance
   
   # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach

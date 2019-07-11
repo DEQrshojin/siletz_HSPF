@@ -14,6 +14,8 @@ calib_wq <- function(pars, stns, strD, endD, n) {
   
   sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
                 c('hydro_year.R', 'day_of_hydro_year.R')), source)
+  
+  source("D:/siletz/scripts/R/utilities.R")
 
   plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
   
@@ -146,6 +148,7 @@ calib_wq <- function(pars, stns, strD, endD, n) {
           geom_point(aes(y = LO, fill = 'yellow'), color = 'darkred', size = 1.2,
                      shape = 23, stroke = 1.0) + ylab('Loads (ton/day)') +
           scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) +
+          # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4) +
           guides(col = guide_legend(ncol = 1)) +
           theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
                 legend.title = element_blank(), axis.title.x = element_blank()) +
@@ -167,6 +170,7 @@ calib_wq <- function(pars, stns, strD, endD, n) {
           geom_point(aes(y = CO, fill = 'yellow'), color = 'darkred', size = 1.2,
                      shape = 23, stroke = 1.0) + ylab('Concentration (mg/L)') +
           scale_y_log10(labels = plain) + facet_wrap(~hy, ncol = 4) +
+          # scale_y_continuous(labels = plain) + facet_wrap(~hy, ncol = 4) +
           guides(col = guide_legend(ncol = 1)) +
           theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
                 legend.title = element_blank(), axis.title.x = element_blank()) +
@@ -184,9 +188,9 @@ calib_wq <- function(pars, stns, strD, endD, n) {
          dpi = 300)
   
   corr <- qlc_corr(pars = pars, datM = datM, n = n)
-  
+
   cal[10, 2 : 4] <- corr$Loads; cal[11, 2 : 4] <- corr$Concs
-  
+
   return(cal)
   
 }
@@ -376,11 +380,25 @@ check_2017_wq <- function(par, n) {
   
   mdDt <- melt(mdDt, id.vars = 'Date', value.name = 'C_mgL', variable.name = 'stn')
   
-  plt <- ggplot(mdDt, aes(x = Date, y = C_mgL)) +
-         geom_line(color = 'darkblue', size = 0.5) +
+  # Remove stations 37484 and 38300
+  wqDt <- wqDt[which(wqDt$stn != '37848-ORDEQ' & wqDt$stn != '38300-ORDEQ'), ]
+
+  # Order the stations 
+  wqDt$stn <- factor(wqDt$stn, levels(factor(wqDt$stn))[c(4, 1, 3, 7, 6, 8, 2, 5, 10, 9)])
+  
+  mdDt$stn <- factor(mdDt$stn, levels(factor(mdDt$stn))[c(8, 1, 5, 6, 3, 9, 4, 2, 7, 10)])
+  
+  plain <- function(x) {format(x, scientific = FALSE, trim = TRUE)}
+  
+  plt <- ggplot(mdDt, aes(x = Date, y = C_mgL)) + geom_line(color = 'darkblue', size = 0.5) +
          geom_point(data = wqDt, aes(x = date, y = vnd), size = 1.2, shape = 23,
-                    color = 'darkred', stroke = 1.0, fill = 'yellow') +
-         facet_wrap(~stn, ncol = 4)
+                    color = 'darkred', stroke = 1.0, fill = 'yellow') +  theme_bw() +
+         ylab('Concentration (mg/L)') + facet_wrap(~stn, ncol = 4) +
+         guides(col = guide_legend(ncol = 1)) + scale_y_continuous(labels = plain) + 
+         theme(legend.position = c(0.87, 0.1), legend.key = element_blank(),
+               legend.title = element_blank(), axis.title.x = element_blank()) +
+         scale_color_manual(values = 'darkblue', labels = 'Model data') +
+         scale_fill_manual(values = 'yellow', labels = 'Observed data')
   
   ggsave(paste0(par, '_2017_conc_ts_', n, '.png'), plot = plt, dpi = 300, units = "in",
          path = 'D:/siletz/calib/wq/plots', width = 10, height = 7.5)

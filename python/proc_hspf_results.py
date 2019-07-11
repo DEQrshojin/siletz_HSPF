@@ -8,7 +8,7 @@
 def proc_hspf_results(n):
 
     # OPEN THE OUTPUT WDM AND GET THE DSNS
-    messagepath = 'hspfmsg.wdm'
+    messagepath = 'D:/siletz/hspfmsg.wdm'
 
     wdm = WDMUtil(verbose = False, messagepath = messagepath)
 
@@ -39,7 +39,7 @@ def proc_hspf_results(n):
     # EXTRACT MODELED FLOWS FROM WDM OUTPUT FILE AND COMPARE TO 
     for i in range(0, len(dsns)):
 
-        tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
+        # tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
 
         tmpNme = 'PRLN' + str(dsns[i])
 
@@ -62,4 +62,4 @@ def proc_hspf_results(n):
 
     # dfOut.to_csv('calib\\siletz_perlnd_runoff_names.csv', index = False)
 
-    tmp.to_csv('calib\\wq\\siletz_out_runoff.csv', index = False)
+    tmp.to_csv('D:/siletz/calib/wq/siletz_out_runoff.csv', index = False)

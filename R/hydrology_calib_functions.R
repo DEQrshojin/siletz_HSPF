@@ -1,4 +1,20 @@
 
+volume_error <- function(df) {
+  
+  # Set model flows to NA if gage flows are NA
+  df[is.na(df$qSun_G), 5] <- NA
+  
+  df[is.na(df$qSlz_G), 3] <- NA
+  
+  dfTtl <- colSums(df[, 2 : 5], na.rm = TRUE)
+  
+  pB <- c(round(100 * (dfTtl[2] - dfTtl[1]) / dfTtl[1], 1), # Siletz
+          round(100 * (dfTtl[4] - dfTtl[3]) / dfTtl[3], 1)) # Sunshine
+  
+  return(pB)
+  
+}
+
 #_______________________________________________________________________________
 calib_FDC = function(ggeDat, mdlDat, pltPath, site, n) {
   

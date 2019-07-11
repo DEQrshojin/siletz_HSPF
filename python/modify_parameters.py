@@ -5,28 +5,28 @@
 # Lampert, David. (2015). PyHSPF: Data integration software for hydrologic and
 #   water quality modeling. 
 
-def modify_parameters(modelInName, modelOutName):
+def modify_parameters(modelInName, modelOutName, prjPth):
 
-    # LOAD MODEL
-    if not os.path.isfile(modelInName):
+    # LOAD MODEL - Throwing an error because os.path is to env. not project????
+    if not os.path.isfile(prjPth + modelInName):
         print('Missing model file; re-run build_siletz_model.py')
         raise
 
-    with open(modelInName, 'rb') as f: hspfmodel = pickle.load(f)
+    with open(prjPth + modelInName, 'rb') as f: hspfmodel = pickle.load(f)
 
     # READ IN THE ADJUSTED PARAMETERS FROM CSVs
-    csvFiles = ['\\calib\\pwat.csv',
-                '\\calib\\mint.csv',
-                '\\calib\\lzet.csv',
-                '\\calib\\rtks.csv',
-                '\\calib\\sprp.csv',
-                '\\calib\\sprr.csv']
+    csvFiles = ['/calib/pwat.csv',
+                '/calib/mint.csv',
+                '/calib/lzet.csv',
+                '/calib/rtks.csv',
+                '/calib/sprp.csv',
+                '/calib/sprr.csv']
 
     modPars = []
 
     for i in range(0, len(csvFiles)):
 
-        csvFile = os.path.abspath(os.path.curdir) + csvFiles[i]
+        csvFile = prjPth + csvFiles[i]
 
         temp = read_csv_to_list(csvFile)
 
@@ -84,19 +84,19 @@ def modify_parameters(modelInName, modelOutName):
         hspfmodel.rchreses[i].KS = modPars[3][i][0]
         
         # RCHRES Sediment
-        hspfmodel.rchreses[i].DB50      = modPars[5][i][0] # Particle size D50   
-        hspfmodel.rchreses[i].POR       = modPars[5][i][1] # Substrate porosity
+        hspfmodel.rchreses[i].DB50      = modPars[5][i][0]  # Particle size D50   
+        hspfmodel.rchreses[i].POR       = modPars[5][i][1]  # Substrate porosity
         # Sand characteristics
-        hspfmodel.rchreses[i].Wsand     = modPars[5][i][2] # Fall velocity
-        hspfmodel.rchreses[i].KSAND     = modPars[5][i][3] # Sandload coefficient
-        hspfmodel.rchreses[i].EXPSND    = modPars[5][i][4] # Sandload exponent
+        hspfmodel.rchreses[i].Wsand     = modPars[5][i][2]  # Fall velocity
+        hspfmodel.rchreses[i].KSAND     = modPars[5][i][3]  # Sandload coefficient
+        hspfmodel.rchreses[i].EXPSND    = modPars[5][i][4]  # Sandload exponent
         # Silt characteristics
-        hspfmodel.rchreses[i].Wsilt     = modPars[5][i][5] # Fall velocity (mm/s)
-        hspfmodel.rchreses[i].TAUCDsilt = modPars[5][i][6] # Critical depos shear (kg/m2)
-        hspfmodel.rchreses[i].TAUCSsilt = modPars[5][i][7] # Critical scour shear (kg/m2)
-        hspfmodel.rchreses[i].Msilt     = modPars[5][i][8] # Silt erobability (kg/m2/day)
+        hspfmodel.rchreses[i].Wsilt     = modPars[5][i][5]  # Fall velocity (mm/s)
+        hspfmodel.rchreses[i].TAUCDsilt = modPars[5][i][6]  # Critical depos shear (kg/m2)
+        hspfmodel.rchreses[i].TAUCSsilt = modPars[5][i][7]  # Critical scour shear (kg/m2)
+        hspfmodel.rchreses[i].Msilt     = modPars[5][i][8]  # Silt erobability (kg/m2/day)
         # Clay characteristics
-        hspfmodel.rchreses[i].Wclay     = modPars[5][i][9] # Fall velocity (mm/s)
+        hspfmodel.rchreses[i].Wclay     = modPars[5][i][9]  # Fall velocity (mm/s)
         hspfmodel.rchreses[i].TAUCDclay = modPars[5][i][10] # Critical depos shear (kg/m2)
         hspfmodel.rchreses[i].TAUCSclay = modPars[5][i][11] # Critical scour shear (kg/m2)
         hspfmodel.rchreses[i].Mclay     = modPars[5][i][12] # Clay erobability (kg/m2/day)

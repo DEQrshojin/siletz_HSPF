@@ -53,14 +53,17 @@ for (i in 1) {
   
   # Convert m3/s to cfs
   qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
-  
+
+  # Read in gage data  
   qGage <- read.csv('D:/siletz/calib/gge.csv', stringsAsFactors = FALSE)
   
+  # Convert dates
   qData$Date <- as.POSIXct(qData$Date, '%Y-%m-%d %H:%M:%S',
                            tz = 'America/Los_Angeles')
   
   qGage$Date <- as.Date(qGage$Date, '%Y-%m-%d', tz = 'America/Los_Angeles')
   
+  # Regularize the model output data frame 
   calDat <- merge(ts, qData, by.x = 'Date', by.y = 'Date', all.x = TRUE,
                   all.y = FALSE)
   
@@ -135,7 +138,7 @@ for (i in 1) {
                                 datDly$MO, '-01'), '%Y-%m-%d')
   
   datDly$qSun_M <- ifelse(datDly$qSun_M == 0, 1e-6, datDly$qSun_M)
-  
+
   # MEAN MONTHLY VOLUMES ----
   datMnt <- aggregate(datDly[, 2 : 5], by = list(datDly$Mndt), mean,
                       na.rm = TRUE)
@@ -187,7 +190,7 @@ for (i in 1) {
   # PLOT TIME SERIES ----
   slzPlot = ggplot(data = slzDat[which(slzDat$srce == 'qSlz_G' | slzDat$srce == 'qSlz_M'), ],
                    aes(x = HDOY, y = flow_cfs, color = srce)) +
-            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) + 
+            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) +
             scale_color_manual(values = c('darkblue', 'darkred'),
                                labels = c('Gage data', 'Model data')) +
             scale_y_log10(limits = c(50, 50000), labels = comma) +
@@ -207,10 +210,10 @@ for (i in 1) {
             theme_bw() + theme(legend.position = c(0.75, 0.10),
                                axis.title.x = element_blank()) +
             guides(color = guide_legend(title = 'Flow data source'))
-  
+
   sunPlot = ggplot(data = slzDat[which(slzDat$srce == 'qSun_G' | slzDat$srce == 'qSun_M'), ],
                    aes(x = HDOY, y = flow_cfs, color = srce)) +
-            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) + 
+            geom_line(size = 0.6) + facet_wrap(~ HY, ncol = 4) +
             scale_color_manual(values = c('darkblue', 'darkred'),
                                labels = c('Gage data', 'Model data')) +
             scale_y_log10(limits = c(0.1, 5000), labels = comma) +
@@ -230,10 +233,10 @@ for (i in 1) {
             theme_bw() + theme(legend.position = c(0.75, 0.10),
                                axis.title.x = element_blank()) +
             guides(color = guide_legend(title = 'Flow data source'))
-  
+
   ggsave(filename = paste0('ts_plot_slz_', n, '.png'), plot = slzPlot,
-         path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')  
-  
+         path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')
+
   ggsave(filename = paste0('ts_plot_sun_', n, '.png'), plot = sunPlot,
          path = pltPath, width = 10, height = 6.5, dpi = 300, units = 'in')
   
@@ -289,17 +292,18 @@ for (i in 1) {
   
   pBallSun <- round(100 * (volTotal[4] - volTotal[3]) / volTotal[3], 1)
   
-  # - Dry season volume error (July - Sept)
-  datDry <- datMnt[datMnt$MN %in% c(7, 8, 9), ]
+  # - Summer season volume error (July - Sept)
+  pbSum <- volume_error(datMnt[datMnt$MN %in% 7 : 9, ])
+
+  # - Fall season volume error (Oct - Dec)
+  pbFll <- volume_error(datMnt[datMnt$MN %in% 10 : 12, ])
   
-  datDry[is.na(datDry$qSun_G), 5] <- NA
+  # - Winter season volume error (Jan - Mar)
+  pbWnt <- volume_error(datMnt[datMnt$MN %in% 1 : 3, ])
   
-  dryTotal <- colSums(datDry[, 2 : 5], na.rm = TRUE)
-  
-  pBDrySlz <- round(100 * (dryTotal[2] - dryTotal[1]) / volTotal[1], 1)
-  
-  pBDrySun <- round(100 * (dryTotal[4] - dryTotal[3]) / dryTotal[3], 1)
-  
+  # - Spring season volume erre  (Apr - June)
+  pbSpr <- volume_error(datMnt[datMnt$MN %in% 4 : 6, ])
+
   # Storm (Upper 10% flows)
   datStrSlz <- datDly[datDly$qSlz_G >= qntSlz[5], c(1 : 3)]
   
@@ -320,23 +324,29 @@ for (i in 1) {
   
   pBStrSun <- round(100 * (volStrSun[2] - volStrSun[1]) / volStrSun[1], 2)
   
-  calSttOut <- data.frame('dNSESz' = dayNSESlz,
-                          'mNSESz' = mntNSESlz,
-                          'sNSESz' = stmNSESlz,
-                          'FDCSz' = fdcNSESlz,
-                          'PBSz' = pBallSlz,
-                          'PBDSz' = pBDrySlz,
-                          'PBSSz' = pBStrSlz,
-                          'dNSESn' = dayNSESun,
-                          'mNSESn' = mntNSESun,
-                          'sNSESn' = stmNSESun,
-                          'FDCSn' = fdcNSESun,
-                          'PBSn' = pBallSun, 
-                          'PBDSn' = pBDrySun,
-                          'PBSSn' = pBStrSun,
+  calSttOut <- data.frame('dNSESz' = dayNSESlz, # 1  NSE on daily
+                          'mNSESz' = mntNSESlz, # 2  NSE on monthly
+                          'sNSESz' = stmNSESlz, # 3  NSE on storm peaks
+                          'FDCSz' = fdcNSESlz,  # 4  NSE on flow duration
+                          'PBSz' = pBallSlz,    # 5  Total percent bias
+                          'PBUSz' = pbSum[1],   # 6  Summer volume percent bias 
+                          'PBFSz' = pbFll[1],   # 7  Fall volume percent bias 
+                          'PBWSz' = pbWnt[1],   # 8  Winter volume percent bias 
+                          'PBPSz' = pbSpr[1],   # 9  Spring volume percent bias 
+                          'PBSSz' = pBStrSlz,   # 10 Storm volume percent pias
+                          'dNSESn' = dayNSESun, # 1  NSE on daily 
+                          'mNSESn' = mntNSESun, # 2  NSE on monthly
+                          'sNSESn' = stmNSESun, # 3  NSE on storm peaks
+                          'FDCSn' = fdcNSESun,  # 4  NSE on FDC
+                          'PBSn' = pBallSun,    # 5  Total percent bias
+                          'PBUSn' = pbSum[2],   # 6  Summer volume percent bias 
+                          'PBFSn' = pbFll[2],   # 7  Fall volume percent bias 
+                          'PBWSn' = pbWnt[2],   # 8  Winter volume percent bias 
+                          'PBPSn' = pbSpr[2],   # 9  Spring volume percent bias 
+                          'PBSSn' = pBStrSun,   # 7
                           stringsAsFactors = FALSE)
   
-  write.csv(calSttOut, 'D:/siletz/calib/cal_stat.csv', row.names = FALSE)
+  write.csv(calSttOut, 'D:/siletz/calib/cal_stat_updt.csv', row.names = FALSE)
   
   # TIDY UP! ----
   # Move the output files to storage folders

@@ -7,8 +7,7 @@
 for (i in 1) {
   
   # Source the functions ----
-  # source('D:/siletz/scripts/R/hydrology_set_pars.R')
-  source('D:/siletz/scr_tst/hydrology/hydrology_set_pars.R')
+  source('D:/siletz/scripts/R/hydrology_set_pars.R')
 
   # ARGUEMENTS -----------------------------------------------------------------
   parFil <- 'D:/siletz/parms.csv' # Parameter input file

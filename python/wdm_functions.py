@@ -9,7 +9,9 @@
 
 def ts_to_wdmFile(wdmFile, pcpData, petData):
 
-    wdm = WDMUtil(verbose = True, messagepath = 'hspfmsg.wdm')
+    mssgpath = 'D:/siletz/hspfmsg.wdm'
+
+    wdm = WDMUtil(verbose = True, messagepath = mssgpath)
 
     wdm.open(wdmFile, 'w')
 
