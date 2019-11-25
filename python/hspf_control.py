@@ -21,6 +21,9 @@ n = int(countFil.readline())
 
 countFil.close()
 
+# OR SET MANUALLY
+n = 999
+
 # SET MODEL NAMES
 modelNames = ['siletz', 'siletz' + str(n)]
 

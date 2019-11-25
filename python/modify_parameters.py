@@ -71,6 +71,7 @@ def modify_parameters(modelInName, modelOutName, prjPth):
         hspfmodel.perlnds[i].JSER       = modPars[4][i][5] # Sed washoff expnt
         # SED-STOR, Sediment initial value of detached sediment
         hspfmodel.perlnds[i].DETS       = modPars[4][i][6] # Sed store init
+        
         # FIXED VALUES --------------------------------------------------------
         hspfmodel.perlnds[i].NVSI       = 0.000 # Sed deposit rate
         hspfmodel.perlnds[i].KGER       = 0.000 # Soil scour coeff
@@ -100,6 +101,7 @@ def modify_parameters(modelInName, modelOutName, prjPth):
         hspfmodel.rchreses[i].TAUCDclay = modPars[5][i][10] # Critical depos shear (kg/m2)
         hspfmodel.rchreses[i].TAUCSclay = modPars[5][i][11] # Critical scour shear (kg/m2)
         hspfmodel.rchreses[i].Mclay     = modPars[5][i][12] # Clay erobability (kg/m2/day)
+        
         # FIXED VALUES --------------------------------------------------------
         # Sediment characteristics
         hspfmodel.rchreses[i].Dsand     = 0.250      # Diameter (mm)

@@ -416,9 +416,13 @@ format_R2 <- function(m = 1, b = 0, r2 = 1) {
                      list(b = format(b, digits = 2), m = format(m, digits = 2),
                           r2 = format(r2, digits = 3)))
     
-  } else {eq <- substitute(italic(y) == m %.% italic(x) + b * "," ~~ italic(r)^2 ~ "=" ~ r2, 
+  } else {
+    
+    eq <- substitute(italic(y) == m %.% italic(x) + b * "," ~~ italic(r)^2 ~ "=" ~ r2,
                      list(b = format(b, digits = 2), m = format(m, digits = 2),
-                          r2 = format(r2, digits = 3)))}
+                          r2 = format(r2, digits = 3)))
+    
+  }
   
   return(as.character(as.expression(eq)))
   

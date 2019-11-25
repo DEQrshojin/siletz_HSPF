@@ -433,15 +433,27 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
     tmp <- melt(mdDF, id.vars = 'doy', measure.vars = c('ifw', 'agw'),
                 variable.name = 'ROComp', value.name = 'C_mgL')
     
+    lbls <- data.frame(par = c('NOx', 'NH3', 'TKN', 'TP', 'PO4', 'OrC'),
+                       nme = c('Nitrate', 'Ammonia', 'Total Kjeldahl nitrogen',
+                               'Total phosphorus', 'Orthophosphate',
+                               'Total organic carbon'), stringsAsFactors = F)
+    
     plt <- ggplot(tmp, aes(x = doy, y = C_mgL, color = ROComp)) + geom_line() +
-           ylab("Concentration (mg/L)") +
-           scale_color_manual(values = c('darkblue', 'darkred'),
-                              labels = c('Interflow', 'Groundwater')) +
-           theme_bw() + theme(legend.position = c(0.45, 0.800),
-                              axis.title.x = element_blank()) +
-           guides(color = guide_legend(title = 'Runoff Component')) +
-           geom_point(data = wqDF, aes(x = doy, y = C_mgL), size = 1.2, shape = 2,
-                      stroke = 0.8, color = 'darkred', fill = 'yellow') +
+           ylab(paste0(lbls[which(lbls$par == par), 2], ' (mg/L)')) +
+           scale_color_manual(values = c('darkblue', 'darkgreen', 'darkred'),
+                              labels = c('Groundwater', 'Interflow', 'Observations')) +
+           theme_bw() +
+           theme(legend.position = c(0.45, 0.800), axis.title.x = element_blank(),
+                              legend.background = element_rect(fill = alpha('white', 0.4),
+                                                               color = 'black',
+                                                               size = 0.3)) +
+           guides(color = guide_legend(title = 'Runoff Component',
+                                       override.aes = list(linetype = c('solid',
+                                                                        'solid',
+                                                                        'blank'),
+                                                           shape = c(45, 45, 2)))) +
+           geom_point(data = wqDF, aes(x = doy, y = C_mgL, color = 'Observations'),
+                      size = 1.2, shape = 2, stroke = 0.8) +
            scale_x_continuous(breaks = c(15, 46, 76, 107, 138, 166, 197, 227,
                                          258, 288, 319, 350),
                               labels = c('15' = 'O', '46' = 'N', '76' = 'D',
@@ -559,5 +571,63 @@ proc_daily_flows <- function(mDat, gDat) {
   calDat <- calDat[, c(1, 2, 4, 3, 5)]
   
   return(calDat)
+  
+}
+
+#_______________________________________________________________________________
+read_ts_loads <- function(tFil = NULL, ts = NULL, strD = NULL, endD = NULL) {
+  
+  # read in the loads time series data
+  df <- read.csv(file = tFil)
+  
+  names(df)[1] <- 'date'
+  
+  # Find the number of basins:
+  nBas <- length(df) - 1
+  
+  bsns <- names(df)[2 : length(df)]; bsns <- as.numeric(gsub('X', '', bsns))
+
+  # Set up the basin time series loads object
+  tsLd <- list()
+
+  # make the time series data dates into midpoints, e.g., monthly values peak
+  # on the 15th at noon, daily at noon each day
+  if (ts == 'month') {
+    df$date = as.POSIXct(paste0(year(strD), '-', df$date, '-15 12:00'),
+                         '%Y-%m-%d %H:%M', tz = 'America/Los_Angeles')
+  } else if (ts == 'day') {
+    df$date = as.POSIXct(df$date, '%Y-%m-%d', tz = 'America/Los_Angeles') +
+              hours(12)
+  } else if (ts == 'hour') {
+    df$date = as.POSIXct(df$date, '%Y-%m-%d %H:%M', tz = 'America/Los_Angeles')
+  } else {break} 
+  
+  # create a time series
+  ts <- data.frame(date = seq(strD, endD, 3600), stringsAsFactors = F)
+  
+  ts <- merge(ts, df, by.x = 'date', by.y = 'date', all.x = T, all.y = F)
+  
+  # Iterate through each basin and create a time series interporating each
+  # intermediate value to an hourly time series
+
+  for (i in 1 : nBas) {
+
+    temp <- ts[, c(1, i + 1)]; names(temp)[2] <- 'basn'
+    
+    # Find the min/max indeces with non-NA values
+    ends <- c(min(which(!is.na(temp$basn))), max(which(!is.na(temp$basn))))
+    
+    # Calculate mean of these, as this will be the value for the NA indeces
+    temp[1, 2] <- temp[nrow(temp), 2] <- (temp[ends[1], 2] + temp[ends[2], 2]) / 2
+    
+    # Interpolate the values between the min/max valued indeces
+    temp$basn <- unlist(approx(x = temp$date, y = temp$basn, xout = temp$date,
+                               method = 'linear', rule = 1)[2])
+    
+    tsLd[[i]] <- temp; names(tsLd)[i] <- paste0('BAS', bsns[i])
+    
+  }
+
+  return(tsLd)
   
 }

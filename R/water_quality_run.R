@@ -2,7 +2,7 @@
 read_wq_pars <- function(cf, writeCsv = TRUE) { 
   
   # Synopsis ----
-  
+  # Reads control file and populates control object passed to other functions
   
   # READ IN WQ CONTROL FILE VARIABLES 
   v <- readLines(cf)
@@ -14,17 +14,17 @@ read_wq_pars <- function(cf, writeCsv = TRUE) {
   
   v <- strsplit(v, ',')
   
+  # Name element (from first item in element)
   for (i in 1 : length(v)) {
-    
-    names(v)[i] = v[[i]][1] # Name the element from the first item in the element
-    
-    v[[i]] <- v[[i]][2 : length(v[[i]])] # Remove the first element
-    
+    names(v)[i] = v[[i]][1]; v[[i]] <- v[[i]][2 : length(v[[i]])]
   }
   
-  # Coerce numeric elements to numeric
+  # Coerce to numeric if applicable
   for (el in which(names(v) == 'SURO') : length(v)) {v[[el]] <- as.numeric(v[[el]])}
   
+  v[['add_ts']] <- as.numeric(v[['add_ts']])
+
+  # Create the emcdwc file for output
   v$emcFil <- paste0('D:/siletz/emcdwc_', v$pars, '.csv')
   
   # Overwrite Harmonic parameters ----
@@ -38,15 +38,19 @@ read_wq_pars <- function(cf, writeCsv = TRUE) {
     
     wqDF$Date <- as.Date(wqDF$Date, '%Y-%m-%d')
     
+    # Calculate the seasonal harmonic concentration coefficients
     fit <- seasonal_wq_conc(wqDF = wqDF, par = v$pars, lo = v$lo, hi = v$hi,
                             ts = 'none')
     
-    v$IFWC = fit$f90[1] * v$IFM
-    v$IFW1 = fit$f90[2]; v$IFW2 = fit$f90[3]; v$IFW3 = fit$f90[4]
-    v$IFW4 = fit$f90[5]; v$IFW5 = fit$f90[6]; v$IFW6 = fit$f90[7]
-    v$AGWC = fit$f10[1] * v$GWM
-    v$AGW1 = fit$f10[2]; v$AGW2 = fit$f10[3]; v$AGW3 = fit$f10[4]
-    v$AGW4 = fit$f10[5]; v$AGW5 = fit$f10[6]; v$AGW6 = fit$f10[7] 
+    # Calculate interflow components
+    v$IFWC = fit$f90[1] * v$IFM # Base Interflow concentration
+    v$IFW1 = fit$f90[2]; v$IFW2 = fit$f90[3]; v$IFW3 = fit$f90[4] # Remaining
+    v$IFW4 = fit$f90[5]; v$IFW5 = fit$f90[6]; v$IFW6 = fit$f90[7] # Harmonics
+    
+    # Calculate groundwater components
+    v$AGWC = fit$f10[1] * v$GWM # Base GW concentration
+    v$AGW1 = fit$f10[2]; v$AGW2 = fit$f10[3]; v$AGW3 = fit$f10[4] # Remaining
+    v$AGW4 = fit$f10[5]; v$AGW5 = fit$f10[6]; v$AGW6 = fit$f10[7] # Harmonics
     
   }
   
@@ -124,8 +128,10 @@ write_wq_2_csv <- function(pars = NULL,  tmat = 1.000, SURO = 1.5, IFWC = 0,
 }
 
 #_______________________________________________________________________________
-run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
-                   basFil = NULL) {
+run_wq <- function(v = NULL) {
+  
+# run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
+#                    basFil = NULL) {
   
   # This function is the over-arching call to run the water quality process. Its 
   # main purpose is to parse the Q and WQ data into years and run those
@@ -138,7 +144,7 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
   suppressMessages(library('dplyr'))
 
   # Create a data frame of date iterations
-  yrs <- year(strD) : year(endD)
+  yrs <- year(v$strD) : year(v$endD)
   
   if (length(yrs) == 1) {
     
@@ -149,9 +155,9 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     
     intDts <- paste0(yrs[2 : length(yrs)], '-01-01')
     
-    dts <- data.frame(as.POSIXct(c(strD, intDts), '%Y-%m-%d',
+    dts <- data.frame(as.POSIXct(c(v$strD, intDts), '%Y-%m-%d',
                                  tz = 'America/Los_Angeles'),
-                      as.POSIXct(c(intDts, endD), '%Y-%m-%d',
+                      as.POSIXct(c(intDts, v$endD), '%Y-%m-%d',
                                  tz = 'America/Los_Angeles'))
     
   }
@@ -171,7 +177,10 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
     
     # Run the proc_emcdwc with calculates reach loads and concentrations
     qlcTmp <- proc_wq(restart = restart, strD = dts[n, 1], endD = dts[n, 2],
-                      wqDir = wqDir, emcFil = emcFil, basFil = basFil)
+                      v = v)
+    
+    # qlcTmp <- proc_wq(restart = restart, strD = dts[n, 1], endD = dts[n, 2],
+    #                   wqDir = wqDir, emcFil = emcFil, basFil = basFil)
     
     # Restart = list of last line of previous iteration of values for each item
     # In the case of RAT & ROS, only last line was passed back into run_wq()
@@ -207,8 +216,10 @@ run_wq <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL,
 }
 
 #_______________________________________________________________________________
-proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
-                    emcFil = NULL, basFil = NULL) {
+proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, v = NULL) {
+  
+# proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
+#                     emcFil = NULL, basFil = NULL) {
   
   # Synopsis ----
   # This function takes lateral flows, specified concentrations or seasonal
@@ -227,7 +238,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
                 c('hydro_year.R', 'day_of_hydro_year.R')), source)
   
-  # Load and process data ----
+  # Load and process lateral inflow data ----
   # qOut <- proc_flow_4_wq(wqDir) Not needed -> current qOut = whole hydro period
   qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
   
@@ -238,7 +249,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   nmVec <- names(qOut[['qLat']])
   
   # SIB = Surface, interflow, baseflow runoff concentration parameters
-  sib <- preproc_wq(nmVec = nmVec, emcFil = emcFil)
+  sib <- preproc_wq(nmVec = nmVec, emcFil = v$emcFil)
   
   lLat <- qLat # Initialize the df
   
@@ -254,6 +265,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
         mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
         mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
   
+  # ****************************************************************************
   # Calculate lateral loads ----
   # Catchment Inflows - calculates from all three RO components (SURO, IFWO & AGWO)
   for (i in 1 : 3) {
@@ -290,9 +302,10 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     }
   }
   
-  # Pull in the control file variables
-  v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
+  # Pull in the control file variables -- DON'T NEED ANYMORE!
+  # v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
   
+  # ****************************************************************************
   if (v$mod_loads == 1) {
     
     x <- as.numeric(unique(sib$BAS[2 : length(sib$BAS)]))
@@ -318,7 +331,8 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
 
   latL <- qlcLat[['load']]
   
-  # Added loads (OSSF or animal unit (livestock) feces); use Qual-2Kw for NPDES
+  # ****************************************************************************
+  # Added loads (OSSF or animal unit (livestock) feces) -- for scalar loads only
   if (v$add_loads == 1) { 
     
     basn <- paste0('Bas', v$addB)
@@ -327,9 +341,30 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     
   }
   
-  # Output lateral flows and loads
+  # ****************************************************************************
+  # Added time series loads (e.g., STP)
+  if (v$add_ts == 1) {
+
+    # Read in time series file; specify file time step: c('hour', 'day', 'month')
+    tsLd <- read_ts_loads(tFil = v$tsFil, ts = v$tStep, strD = strD, endD = endD)
+    
+    # Extract the basins for time series load inputs
+    basn <- as.numeric(gsub('BAS', '', names(tsLd)))
+
+    for (i in 1 : length(basn)) {
+      
+      indx <- which(names(tsLd) == paste0('BAS', basn[i]))
+      
+      latL[[basn[i]]] <- latL[[basn[i]]] + tsLd[[indx]]$basn
+      
+    }
+  }
+
+  # ****************************************************************************
+  # Output lateral flows and loads -- for general testing only
   # saveRDS(qlcLat[['load']], paste0('D:/siletz/calib/wq/latQLC_', v$pars,'.RData'))
   
+  # ****************************************************************************
   # Pre-process reach flows & loads for reach processing ----
   qRch <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[['qRch']])
   
@@ -365,7 +400,8 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     rchS[1, ] <- restart[['ROSRst']]
 
   }
-  # ____________________________________________________________________________
+  
+  # ****************************************************************************
   # ADCALC SUBROUTINES ----
   # Process reach flows and volume; convert volumes from Mm3 to m3
   rchO[, 2 : length(rchQ)] <- rchQ[, 2 : length(rchQ)] * 3600 # Rch Out Vol (m3)
@@ -401,10 +437,10 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
     rchE[, s] <- COJS[, s] * rchQ[, s] * 3600
 
   }
-  # ____________________________________________________________________________
-  
+
+  # ****************************************************************************
   # Import reach processing information ----
-  lnks <- proc_network_linkage(basFil)
+  lnks <- proc_network_linkage(v$basFil)
   
   # Calculate reach outflow loads and concentrations ----
   for (i in 2 : length(latL)) {
@@ -473,6 +509,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
 
   }   # i  loops through the basin lateral loads (n = number of basins)
   
+  # ****************************************************************************
   # OPTIONAL: Outputs are for checking the model performance ----
   # dir <- 'D:/siletz/scripts/R/wVar/'
   # write.csv(rchL, paste0(dir, 'rchL.csv'), row.names = F)
@@ -487,6 +524,7 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, wqDir = NULL,
   # write.csv(rchQ, paste0(dir, 'rchQ.csv'), row.names = F)
   # These outputs are for checking the model performance
   
+  # ****************************************************************************
   # Prep outputs ----
   # Return a list of DFs with flows, loads and concentrations from each reach
   qlcOut <- list(reach_flows = rchQ,          # 1
@@ -656,4 +694,136 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
   # Output lateral flows and loads
   return(qlcLat)
 
+}
+
+#_______________________________________________________________________________
+proc_wq_latQLC_by_HRU <- function(strD = NULL, endD = NULL, wqDir = NULL,
+                                  emcFil = NULL) {
+  
+  # Synopsis ----
+  # This function takes is identical to proc_wq up to the calculation of lateral
+  # flows, concentrations and loads by HRU x basin. Does not produce reach values.
+  
+  # Libraries, scripts and options ----
+  options(stringsAsFactors = FALSE)
+  
+  suppressMessages(library('dplyr'))
+  
+  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
+                c('hydro_year.R', 'day_of_hydro_year.R')), source)
+  
+  # Load and process data ----
+  # qOut <- proc_flow_4_wq(wqDir) Not needed -> current qOut = whole hydro period
+  qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
+  
+  # Reduce from qOut to lateral loads of specified dates
+  qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
+  
+  # Pre-proces emcdwc table
+  nmVec <- names(qOut[['qLat']])
+  
+  # SIB = Surface, interflow, baseflow runoff concentration parameters
+  sib <- preproc_wq(nmVec = nmVec, emcFil = emcFil)
+  
+  lLat <- qLat # Initialize the df
+  
+  # Extract column indeces of SURO, IFWO and AGWO
+  ind <- list(SURO = which(sib$ROC == 'SURO'), IFWO = which(sib$ROC == 'IFWO'),
+              AGWO = which(sib$ROC == 'AGWO'))
+  
+  # Create a dataframe to calculate seasonality (periodicity) of the time series
+  it <- data.frame(Date = lLat$Date)
+  
+  it <- it %>%
+        mutate(hyr = hydro_year(Date), doy = day_of_hydro_year(Date)) %>%
+        mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
+        mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
+
+  # Calculate lateral loads ----
+  # Catchment Inflows - calculates from all three RO components (SURO, IFWO & AGWO)
+  for (i in 1 : 3) {
+    
+    if(names(ind)[i] == 'SURO') {
+      
+      # Calculate loads from surface rounoff
+      for (j in ind[[i]]) {lLat[, j] <- qLat[, j] * sib[j, 'SURO'] * 3.6}
+      
+    } else {
+      
+      for (j in ind[[i]]) {
+        
+        # Select columns for seasonal variation function coefficients
+        if (i == 2) {k <- 6 : 12} else {k <- 13 : 19}
+        
+        # Calculate the concentration for each HRU and baseQ/itfwQ component
+        itCnc <- sib[j, k[1]] +
+                 sib[j, k[2]] * sin(2*pi*it$p) + sib[j, k[3]] * cos(2*pi*it$p) +
+                 sib[j, k[4]] * sin(4*pi*it$p) + sib[j, k[5]] * cos(4*pi*it$p) +
+                 sib[j, k[6]] * sin(6*pi*it$p) + sib[j, k[7]] * cos(6*pi*it$p)
+        
+        # Break if any concentrations is less than 0
+        if (length(which(itCnc < 0)) != 0) {
+          
+          print(paste0('Warning: negative concentrations in ', names(qLat)[j]))
+          
+        }
+        
+        # Apply to lateral flows
+        lLat[, j] <- qLat[, j] * itCnc * 3.6
+        
+      }
+    }
+  }
+  
+  # Pull in the control file variables
+  v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
+  
+  # Process modified loads if applicable
+  if (v$mod_loads == 1) {
+    
+    x <- as.numeric(unique(sib$BAS[2 : length(sib$BAS)]))
+    
+    v$modB <- v$modB[order(x)]; v$modL <- v$modL[order(x)]
+    
+    # Process lateral Q&L ----
+    # Modified loads (Red alder community multpliers)
+    for (i in 1 : length(v$modB)) {
+      
+      # Modify for specific basins, only for forested and AGWO & IFWO
+      cond <- which(sib$BAS == v$modB[i] &
+                      (sib$HRU == 'FORHI' | sib$HRU == 'FORLO') &
+                      sib$ROC != 'SURO')
+      
+      lLat[, cond] <- lLat[, cond] * v$modL[i]
+      
+    }
+  }
+  
+  # Separate out flows, loads and concentrations
+  qlcLat <- proc_qlc(emc = sib, parV = 'HRU', qLat, lLat) # Basin aggregate
+  
+  latL <- qlcLat[['load']]; latC <- qlcLat[['conc']]; latQ <- qlcLat[['flow']]
+  
+  # Added loads (OSSF or animal unit (livestock) feces); use Qual-2Kw for NPDES
+  # Add loads post-process--first find where OSST on NLCD then add in.
+  
+  # Recalculate concentrations
+  for (i in 1 : length(latL)) {
+  
+    for (j in 2 : length(latL[[i]])) {
+      
+      latC[[i]][, j] <- latL[[i]][, j] / (latQ[[i]][, j] * 3.6)
+
+    }
+  
+    # Remove NaNs   
+    latC[[i]][1, 2 : length(latL[[i]])] <- 0
+    
+  }
+
+  qlcLat[['conc']] <- latC
+  
+  # Output lateral flows and loads
+  return(qlcLat)
+  
 }

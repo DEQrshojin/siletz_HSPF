@@ -1,4 +1,4 @@
-# FUNCTION TO MODIFY HSPF MODEL PARAMETERS FROM CSV
+# FUNCTION TO EXTRACT HSPF MODEL OUTPUTS FROM WDM FILE
 # Ryan Shojinaga, Water Quality Analyst, NRS3, Oregon DEQ
 # shojinaga.ryan@deq.state.or.us, 503-229-5777
 
@@ -39,9 +39,9 @@ def proc_hspf_results(n):
     # EXTRACT MODELED FLOWS FROM WDM OUTPUT FILE AND COMPARE TO 
     for i in range(0, len(dsns)):
 
-        # tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
+        tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
 
-        tmpNme = 'PRLN' + str(dsns[i])
+        # tmpNme = 'PRLN' + str(dsns[i])
 
         tmpDat = wdm.get_data(wdmFile, i + 1)
 
@@ -62,4 +62,6 @@ def proc_hspf_results(n):
 
     # dfOut.to_csv('calib\\siletz_perlnd_runoff_names.csv', index = False)
 
-    tmp.to_csv('D:/siletz/calib/wq/siletz_out_runoff.csv', index = False)
+    # tmp.to_csv('D:/siletz/calib/wq/siletz_out_runoff.csv', index = False)
+
+    tmp.to_csv('D:/siletz/calib/wq/siletz_out_hydraulics.csv', index = False)

@@ -16,15 +16,19 @@ for (j in 1) {
   v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = TRUE)
   
   # Run the master water quality control script ----
-  rchQLC <- run_wq(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
-                   emcFil = v$emcFil, basFil = v$basFil)
+  rchQLC <- run_wq(v)
 
+  # rchQLC <- run_wq(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
+  #                  emcFil = v$emcFil, basFil = v$basFil)
+
+  # Save the reach flows/loads output files (for calibration)
   saveRDS(rchQLC, paste0('D:/siletz/calib/wq/rchQLC_', v$pars,'.RData'))
 
   # Run master WQ control script for lateral flows and load only! ----
   # latQLC <- proc_wq_latQLC(strD = v$strD, endD = v$endD, wqDir = v$wqDir,
   #                          emcFil = v$emcFil)
   #
+  # Save the lateral flows/loads output files (for input to Q2K) 
   # saveRDS(latQLC, paste0('D:/siletz/calib/wq/latQLC_', v$pars,'.RData'))
 
   # calib_emcdwc ----

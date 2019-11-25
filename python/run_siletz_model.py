@@ -17,8 +17,8 @@ def run_siletz_model(modelName):
     #            'reach_sediment_out',]    # ROSe - Sed outflow (tonne/ts)
     # targets = ['runoff', ]               # Runoff components (mm/ts)
     # targets = ['perlnd_runoff']
-    # targets = ['reach_flow',
-    #            'reach_volume']
+    # targets = ['reach_flow', 'reach_volume']
+    targets = ['hydraulics']
 
     hspfmodel.messagepath = 'D:/siletz/hspfmsg.wdm'
 
