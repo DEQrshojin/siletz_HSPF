@@ -302,9 +302,6 @@ proc_wq <- function(restart = NULL, strD = NULL, endD = NULL, v = NULL) {
     }
   }
   
-  # Pull in the control file variables -- DON'T NEED ANYMORE!
-  # v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
-  
   # ****************************************************************************
   if (v$mod_loads == 1) {
     
@@ -565,7 +562,7 @@ initialize_QLC_df <- function(nOrd, modDF, zero = FALSE) {
 }
 
 #_______________________________________________________________________________
-proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL) {
+proc_wq_latQLC <- function(v = NULL) {
 
   # Synopsis ----
   # This function takes is identical to proc_wq up to the calculation of lateral
@@ -580,17 +577,16 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
                 c('hydro_year.R', 'day_of_hydro_year.R')), source)
 
   # Load and process data ----
-  # qOut <- proc_flow_4_wq(wqDir) Not needed -> current qOut = whole hydro period
   qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
 
   # Reduce from qOut to lateral loads of specified dates
-  qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
+  qLat <- reduce_qlc(strDte = v$strD, endDte = v$endD, df2Red = qOut[["qLat"]])
 
   # Pre-proces emcdwc table
   nmVec <- names(qOut[['qLat']])
 
   # SIB = Surface, interflow, baseflow runoff concentration parameters
-  sib <- preproc_wq(nmVec = nmVec, emcFil = emcFil)
+  sib <- preproc_wq(nmVec = nmVec, emcFil = v$emcFil)
 
   lLat <- qLat # Initialize the df
 
@@ -606,6 +602,7 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
         mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
         mutate(p = yr + (doy + sib[2, length(sib)]) / dys)
 
+  # ****************************************************************************
   # Calculate lateral loads ----
   # Catchment Inflows - calculates from all three RO components (SURO, IFWO & AGWO)
   for (i in 1 : 3) {
@@ -642,9 +639,8 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
     }
   }
 
-  # Pull in the control file variables
-  v <- read_wq_pars('D:/siletz/wq_confil.csv', writeCsv = FALSE)
-
+  # ****************************************************************************
+  # Modify forest loads for red alder stands
   if (v$mod_loads == 1) {
 
     x <- as.numeric(unique(sib$BAS[2 : length(sib$BAS)]))
@@ -670,14 +666,39 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
 
   latL <- qlcLat[['load']]; latC <- qlcLat[['conc']]; latQ <- qlcLat[['flow']]
 
+  # ****************************************************************************
   # Added loads (OSSF or animal unit (livestock) feces); use Qual-2Kw for NPDES
   if (v$add_loads == 1) {
 
     basn <- paste0('Bas', v$addB)
 
-    for (i in 1 : length(v$addB)) {latL[[basn[i]]] <- latL[[basn[i]]] + v$addL[i]}
-
+    for (i in 1 : length(v$addB)) {
+      latL[[basn[i]]] <- latL[[basn[i]]] + v$addL[i]
+    }
   }
+  
+  # ****************************************************************************
+  # Added time series loads (e.g., STP)
+  v$strD <- as.POSIXct(v$strD, '%Y-%m-%d', tz = 'America/Los_Angeles')
+  v$endD <- as.POSIXct(v$endD, '%Y-%m-%d', tz = 'America/Los_Angeles')
+  
+  if (v$add_ts == 1) {
+    
+    # Read in time series file; specify file time step: c('hour', 'day', 'month')
+    tsLd <- read_ts_loads(tFil = v$tsFil, ts = v$tStep, strD = v$strD, endD = v$endD)
+    
+    # Extract the basins for time series load inputs
+    basn <- as.numeric(gsub('BAS', '', names(tsLd)))
+    
+    for (i in 1 : length(basn)) {
+      
+      indx <- which(names(tsLd) == paste0('BAS', basn[i]))
+      
+      latL[[basn[i]]] <- latL[[basn[i]]] + tsLd[[indx]]$basn
+      
+    }
+  }  
+  # ****************************************************************************
 
   # Recalculate concentrations
   for (i in 2 : length(latL)) {latC[, i] <- latL[, i] / (latQ[, i] * 3.6)}
@@ -689,7 +710,9 @@ proc_wq_latQLC <- function(strD = NULL, endD = NULL, wqDir = NULL, emcFil = NULL
   # Reorganize the columns
   nOrd <- unique(sib$BAS)
 
-  for (k in 1 : 3) {qlcLat[[k]] <- initialize_QLC_df(nOrd = nOrd, modDF = qlcLat[[k]], zero = F)}
+  for (k in 1 : 3) {
+    qlcLat[[k]] <- initialize_QLC_df(nOrd = nOrd, modDF = qlcLat[[k]], zero = F)
+  }
 
   # Output lateral flows and loads
   return(qlcLat)

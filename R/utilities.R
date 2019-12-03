@@ -631,3 +631,46 @@ read_ts_loads <- function(tFil = NULL, ts = NULL, strD = NULL, endD = NULL) {
   return(tsLd)
   
 }
+
+hspf_output <- function(iDir = NULL, iFil = NULL, oDir = NULL) {
+ 
+  # This function runs output for Q2k input. Input parameters include:
+  # 1) The directory where the input HSPF WQ Control Files
+  # 2) The control file iteration name 
+  # 3) The output directory location
+   
+  sapply(paste0('D:/siletz/scripts/R/',c('water_quality_run.R', 'utilities.R',
+                                         'water_quality_calib.R')), source)
+  
+  cFil <- c('NOx', 'NH3', 'TKN', 'TP', 'PO4', 'OrC')
+  
+  #Check input file directory for end forward slash, add if doesn't exist
+  if (substr(iDir, length(iDir), length(iDir)) != '/') {iDir <- paste0(iDir, '/')}
+  
+  # Check existence of output file directory, create if doesn't exist
+  if (!file.exists(oDir)) {dir.create(oDir)}
+  
+  cFil <- paste0(iDir, 'wq_confil_', cFil, '_', iFil, '.csv')
+  
+  for (i in 1 : length(cFil)) {
+
+    # Read the control file
+    v <- read_wq_pars(cFil[i], writeCsv = TRUE)
+    
+    # Run the reach-based water quality modules
+    rchQLC <- run_wq(v)
+
+    # Save the reach-based water quality output files
+    saveRDS(rchQLC, paste0(oDir, '/rchQLC_', v$pars,'.RData'))
+    
+    # Run the lateral-based water quality outpuyt modules
+    latQLC <- proc_wq_latQLC(v)
+    
+    # Save the lateral-based water quality output files
+    saveRDS(latQLC, paste0(oDir, '/latQLC_', v$pars,'.RData'))  
+    
+  }
+  
+  print('Writing output files complete. Check your output directories')
+  
+}
