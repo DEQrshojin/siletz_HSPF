@@ -5,25 +5,21 @@
 # Lampert, David. (2015). PyHSPF: Data integration software for hydrologic and
 #   water quality modeling. 
 
-def run_siletz_model(modelName):
+def run_siletz_model(modelName, outPut):
 
     # Model path and file
     with open(modelName, 'rb') as f: hspfmodel = pickle.load(f)
 
     # WDM Output targets
-    # targets = ['reach_flow', ]
-    #            'reach_tss',              # SSed - Sed concentration (mg/L)
-    #            'reach_total_sediment',]  # RSed - Sed storage (tonne)
-    #            'reach_sediment_out',]    # ROSe - Sed outflow (tonne/ts)
-    # targets = ['runoff', ]               # Runoff components (mm/ts)
-    # targets = ['perlnd_runoff']
-    # targets = ['reach_flow', 'reach_volume']
-    targets = ['hydraulics']
+    if outPut == 'reach_flow':
+        targets = ['reach_flow', 'reach_volume', ] # Specified in the HSPF control: hspf.ctr
+    else:
+        targets = [outPut, ]
 
-    hspfmodel.messagepath = 'D:/siletz/hspfmsg.wdm'
+    hspfmodel.messagepath = 'c:/siletz_tmdl/03_models/01_hspf/hspfmsg.wdm'
 
     hspfmodel.build_wdminfile()
-
+        
     # Set start and end dates
     start = datetime.datetime(2004, 1, 1)
     

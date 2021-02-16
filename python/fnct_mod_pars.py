@@ -8,19 +8,15 @@
 def modify_parameters(modelInName, modelOutName, prjPth):
 
     # LOAD MODEL - Throwing an error because os.path is to env. not project????
-    if not os.path.isfile(prjPth + modelInName):
-        print('Missing model file; re-run build_siletz_model.py')
-        raise
+    # if not os.path.isfile(prjPth + modelInName):
+    #     print('Missing model file; re-run build_siletz_model.py')
+    #     raise
 
-    with open(prjPth + modelInName, 'rb') as f: hspfmodel = pickle.load(f)
+    with open('c:/siletz_tmdl/03_models/01_hspf/' + modelInName, 'rb') as f: hspfmodel = pickle.load(f)
 
     # READ IN THE ADJUSTED PARAMETERS FROM CSVs
-    csvFiles = ['/calib/pwat.csv',
-                '/calib/mint.csv',
-                '/calib/lzet.csv',
-                '/calib/rtks.csv',
-                '/calib/sprp.csv',
-                '/calib/sprr.csv']
+    csvFiles = ['/pwat.csv', '/mint.csv', '/lzet.csv',
+                '/rtks.csv', '/sprp.csv', '/sprr.csv']
 
     modPars = []
 

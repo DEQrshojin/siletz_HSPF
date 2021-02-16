@@ -4,14 +4,14 @@ read_pars <- function(parFil) {
   
   parm <- strsplit(readLines(parFil), ',')
   
-  # REMOVE COMMENT, BLANK LINES, AND EMPTY SPACES ----
+  # REMOVE COMMENT, BLANK LINES, AND EMPTY SPACES
   parm[grep('#{3}', parm)] <- NULL
   
   parm[which(parm == ' ')] <- NULL
   
   parm <- parm[lapply(parm, length) > 0]
   
-  # PROCESS SCALAR OR VECTOR PARAMETERS ----
+  # PROCESS SCALAR OR VECTOR PARAMETERS
   for (i in 1 : length(parm)) {
     
     names(parm)[i] = parm[[i]][1] 
@@ -45,10 +45,10 @@ read_pars <- function(parFil) {
 #_______________________________________________________________________________
 initialize_components <- function(parm, basn, indx) {
   
-  # Synopsis ----
+  # Synopsis
   
   
-  # INITIALIZE THE DATA FRAMES ----
+  # INITIALIZE THE DATA FRAMES
   prNm <- c('LZSN', 'INFL', 'LSUR', 'AGWR', 'DPFR', 'BSFR', 'AGWE',
             'UZSN', 'INFW', 'INTR')
   
@@ -59,20 +59,20 @@ initialize_components <- function(parm, basn, indx) {
                             byrow = FALSE, dimnames = list(NULL, prNm)),
                      stringsAsFactors = FALSE)
   
-  # Create for MON-INTERCEP ----
+  # Create for MON-INTERCEP
   mint <- data.frame(matrix(data = 0, nrow = nrow(indx), ncol = length(mnth),
                             byrow = FALSE, dimnames = list(NULL, mnth)),
                      stringsAsFactors = FALSE)
   
-  # Create for MON-LZETP ----
+  # Create for MON-LZETP
   mlze <- data.frame(matrix(data = 0, nrow = nrow(indx), ncol = length(mnth),
                             byrow = FALSE, dimnames = list(NULL, mnth)),
                      stringsAsFactors = FALSE)
   
-  # Create for HYDR-PARM2; Routing coefficient ----
+  # Create for HYDR-PARM2; Routing coefficient
   rtks <- rep(1, basn) # 1 because you'll specify a scalar multipler
   
-  # Indeces for Individual HRU Infiltration Rates ----
+  # Indeces for Individual HRU Infiltration Rates
   hrus <- unique(indx$HRU)
   
   indx2 <- list()
@@ -83,7 +83,7 @@ initialize_components <- function(parm, basn, indx) {
     
   }
   
-  # Create the list of components ----
+  # Create the list of components
   comp <- list(indx = indx2, mtrx = list(pwat = pwat, mint = mint, mlze = mlze,
                                          rtks = rtks))
   
@@ -160,7 +160,7 @@ populate_pars <- function(parm, comp) {
   cc <- which(names(parm) == 'MLZE')       # Monthly MLZE parameter index
   dd <- which(names(parm) == 'MLZEapp')    # MLZE application indeces
   
-  # POPULATE THE PWAT-PARMS & SEDIMENT FOR GLOBAL SCALARS ----
+  # POPULATE THE PWAT-PARMS & SEDIMENT FOR GLOBAL SCALARS
   glbP <- names(comp[[a]][[c]])
   
   if(length(f) != 0) {glsp <- names(comp[[a]][[f]])
@@ -184,7 +184,7 @@ populate_pars <- function(parm, comp) {
     }
   }
   
-  # POPULATE HRU-SPECIFIC PARAMETERS ----
+  # POPULATE HRU-SPECIFIC PARAMETERS
   # pwat of matrix with indeces for each hru = parameter with index of that HRU
   hrus <- unique(parm[['HRUS']])
   
@@ -231,58 +231,27 @@ populate_pars <- function(parm, comp) {
 #_______________________________________________________________________________
 write_pars_to_csv <- function(comp) {
   
-  path <- 'D:/siletz/calib/'
+  path <- 'C:/siletz_tmdl/'
   
-  # Read the counter from file to get the run number ----
-  countFil = file('D:/siletz/count.txt')
+  source(paste0(path, '04_scripts/01_hspf/02_R/fnct_utilities_hspf.R'))
   
-  n = as.numeric(readLines(countFil))
-  
-  close(countFil)
-  
-  # SAVE THE PREVIOUS VERSIONS IN ANOTHER FOLDER
-  move_par_files(n)
-  
-  # WRITE PWAT PARAMETERS ----
-  write.csv(comp[['mtrx']][['pwat']], file = paste0(path, 'pwat.csv'),
-            row.names = FALSE)
-  
-  # WRITE MONTHLY INTERCEPTION PARAMETERS ----
-  write.csv(comp[['mtrx']][['mint']], file = paste0(path, 'mint.csv'),
-            row.names = FALSE)
-  
-  # WRITE MONTHLY LOWER ZONE ET PARAMETERS ----
-  write.csv(comp[['mtrx']][['mlze']], file = paste0(path, 'lzet.csv'),
-            row.names = FALSE)
-  
-  # WRITE ROUTING PARAMETERS ----
-  write.csv(comp[['mtrx']][['rtks']], file = paste0(path, 'rtks.csv'),
-            row.names = FALSE)
-  
-  write.csv(comp[['mtrx']][['sprp']], file = paste0(path, 'sprp.csv'),
-            row.names = FALSE)
-  
-  write.csv(comp[['mtrx']][['sprr']], file = paste0(path, 'sprr.csv'),
-            row.names = FALSE)
-  
-}
+  ctrF <- read_ctrF_H()
 
-#_______________________________________________________________________________
-move_par_files <- function(n) {
+  path <- paste0('C:/siletz_tmdl/01_inputs/01_hspf/h_pars/', ctrF$name, '/')
   
-  # SET FILES ----
-  aFils <- c('pwat', 'mint', 'lzet', 'rtks', 'sprp', 'sprr')
-  
-  bFils <- paste0('D:/siletz/calib/', aFils, '.csv')          # Old names
-  
-  cFils <- paste0('D:/siletz/calib/', aFils, n - 1, '.csv')       # new names 
-  
-  dFils <- paste0('D:/siletz/calib/parms/', aFils, n - 1, '.csv') # new locations
-  
-  # RENAME
-  for (i in 1 : length(aFils)) {file.rename(bFils[i], cFils[i])}
-  
-  # MOVE
-  for (i in 1 : length(aFils)) {file.rename(cFils[i], dFils[i])}
+  if (!file.exists(path)) {suppressWarnings(dir.create(path))}
+
+  write.csv(comp[['mtrx']][['pwat']], file = paste0(path, 'pwat.csv'),
+            row.names = FALSE) # WRITE PWAT PARAMETERS
+  write.csv(comp[['mtrx']][['mint']], file = paste0(path, 'mint.csv'),
+            row.names = FALSE) # WRITE MONTHLY INTERCEPTION PARAMETERS
+  write.csv(comp[['mtrx']][['mlze']], file = paste0(path, 'lzet.csv'),
+            row.names = FALSE) # WRITE MONTHLY LOWER ZONE ET PARAMETERS
+  write.csv(comp[['mtrx']][['rtks']], file = paste0(path, 'rtks.csv'),
+            row.names = FALSE) # WRITE ROUTING PARAMETERS
+  write.csv(comp[['mtrx']][['sprp']], file = paste0(path, 'sprp.csv'),
+            row.names = FALSE) # SEDIMENT PERLND PARAMETERS??
+  write.csv(comp[['mtrx']][['sprr']], file = paste0(path, 'sprr.csv'),
+            row.names = FALSE) # SEDIMENT REACH PARAMETERS??
   
 }

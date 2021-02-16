@@ -1,12 +1,97 @@
+#_______________________________________________________________________________
+# READ THE HSPF CONTROL FILE
+read_ctrF_H <- function() {
+  
+  ctrF <- readLines("C:/siletz_tmdl/03_models/hspf_ctrl.csv")
+  
+  ctrF <- ctrF[-which(substr(ctrF, 1, 3) == '###' | ctrF == '')]
+  
+  ctrF <- strsplit(ctrF, ',')
+  
+  for (i in 1 : length(ctrF)) {
+    names(ctrF)[i] <- ctrF[[i]][1]; ctrF[[i]] <- ctrF[[i]][2]
+  }
+  
+  return(ctrF)
+}
+
+#_______________________________________________________________________________
+proc_flow_4_wq <- function(hydros = 'C:/siletz_tmdl/02_outputs/01_hspf/',
+                           oFil = 'C:/siletz_tmdl/02_outputs/01_hspf/base_qOut.RData',
+                           nFil = 'NoNameSpecified') {
+
+  # Process pyHSPF flow output data for use in the WQ model component
+  options(stringsAsFactors = FALSE, scipen = -1, warn = -1)
+  
+  if (substr(hydros, nchar(hydros), nchar(hydros)) != '/') {hydros <- paste0(hydros, '/')}
+
+  # If hydros are not being run, but wq is copy old hydros to new hydros  
+  if (!is.null(oFil)) {
+    
+    file.copy(from = oFil, to = paste0(hydros, nFil, '_qOut.RData'))
+    
+  } else {
+
+    tmZn <- 'America/Los_Angeles'
+    
+    # IMPORT DATA 
+    qLat   <- read.csv(paste0(hydros, nFil, '_runoff.csv')) # (mm/ts)
+    HRUs   <- read.csv('C:/siletz_tmdl/01_inputs/01_hspf/lulc/hru_lng.csv') # HRU areas
+    qRch   <- read.csv(paste0(hydros, nFil, '_reach_flow.csv')) # (m3/s)
+    latNme <- read.csv(paste0('C:/siletz_tmdl/01_inputs/01_hspf/lulc/siletz_per',
+                              'lnd_runoff_names.csv')) # Names
+    
+    # ORGANIZE DATA 
+    # Dates
+    ts <- seq(as.POSIXct(qRch$Date[1], '%Y-%m-%d %H:%M:%S', tz = tmZn),
+              as.POSIXct(qRch$Date[nrow(qRch)], '%Y-%m-%d %H:%M:%S', tz = tmZn),
+              3600)
+    
+    if (length(ts) < nrow(qRch)) {ts <- c(ts, ts[length(ts)] + 3600)}
+    
+    qRch$Date <- qLat$Date <- ts
+    
+    # Lateral inflow names
+    oNms <- data.frame(do.call(rbind, strsplit(names(latNme), '_')))
+    
+    oNms <- oNms[-1, ]
+    
+    oNms$X1 <- unique(HRUs$HRU)
+    
+    names(qLat) <- c('Date', paste0(oNms$X3, '_', oNms$X2, '_', oNms$X1))
+    
+    # Convert the runoff depth (mm) -> flow (m3/s)
+    for (i in 1 : nrow(HRUs)) {
+      
+      qLat[, i + 1] <- qLat[, i + 1] * HRUs[i, 2] * 1000 / 3600     # Surface RO
+      
+      qLat[, i + 154] <- qLat[, i + 154] * HRUs[i, 2] * 1000 / 3600 # Interflow RO
+      
+      qLat[, i + 307] <- qLat[, i + 307] * HRUs[i, 2] * 1000 / 3600 # Active GW RO
+      
+    }
+    
+    comp <- list(qLat = qLat, qRch = qRch, HRUs = HRUs)
+    
+    saveRDS(comp, paste0('C:/siletz_tmdl/02_outputs/01_hspf/', nFil, '_qOut.RData'))
+    
+    # Delete the .csv hydros
+    qLat <- file.remove(paste0(hydros, nFil, '_runoff.csv'))
+    qRch <- file.remove(paste0(hydros, nFil, '_reach_flow.csv'))
+    
+    return(comp)
+
+  }
+}
 
 #_______________________________________________________________________________
 proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
   
-  # Synopsis ----
+  # Synopsis 
   # This function takes the raw lateral flows/loads/conc and aggregates them into
   # either A) QLC by basin B) QLC by HRU or C) QLC by runoff component
   
-  # By basin pre-processing ----
+  # By basin pre-processing 
   lstB <- data.frame(BAS = unique(emc$BAS))
   
   if(parV != 'BAS') {
@@ -21,7 +106,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
     
   }
   
-  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY BASIN ----
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY BASIN 
   if(parV == 'BAS') {
     
     # Initialize basin data frames
@@ -52,7 +137,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
       
     }
     
-  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT ----
+  # PROCESS FLOWS, LOADS & CONC AGGREGATED BY HRU or RUNOFF COMPONENT 
   } else {
     
     parV = c(parV, 'BAS')
@@ -106,7 +191,7 @@ proc_qlc <- function(emc = NULL, parV = NULL, qLat = NULL, lLat = NULL) {
 #_______________________________________________________________________________
 preproc_wq <- function(nmVec = NULL, emcFil = NULL) {
   
-  # Synopsis ----
+  # Synopsis 
   # This function takes the raw wq parameter file and processes it for use by 
   # proc_emcdwc(). This includes creating a data frame with all of the HRUs and 
   # runoff components and all of the wq concentrations and seasonal harmonic 
@@ -147,7 +232,7 @@ preproc_wq <- function(nmVec = NULL, emcFil = NULL) {
 #_______________________________________________________________________________
 proc_network_linkage = function(shpFile) {
   
-  # Synopsis ----
+  # Synopsis 
   # This function processes the stream flow network from upstream to downstream 
   # based on a user specified shapefile which contains each basin and corresponding
   # upstream and downstream basins. Only considers multiple U/S basins, not
@@ -233,18 +318,16 @@ proc_network_linkage = function(shpFile) {
 runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
                               emcFil = NULL) {
   
-  # Synopsis ----
+  # Synopsis 
+  # Function to parse out components of runoff (flow volume) associated with
+  # Surface, interflow and base flow. Contains unused water quality components.
+  # This function is only used in the watershed model calibration process.
   
-  
-  
-  # Libraries, scripts and options ----
+  # Libraries, scripts and options 
   options(stringsAsFactors = FALSE)
-  
-  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
-                c('hydro_year.R', 'day_of_hydro_year.R')), source)
 
-  # Load and process data ----
-  qOut <- readRDS('D:/siletz/calib/wq/qOut.RData')
+  # Load and process data 
+  qOut <- readRDS('C:/siletz_tmdl/02_outputs/01_hspf/base_qOut.RData')
   
   # Reduce from qOut to lateral loads of specified dates 
   qLat <- reduce_qlc(strDte = strD, endDte = endD, df2Red = qOut[["qLat"]])
@@ -254,7 +337,7 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
   
   emcdwc <- preproc_wq(nmVec = nmVec, emcFil = emcFil)
   
-  # Calculate lateral loads ----
+  # Calculate lateral loads 
   lLat <- qLat # Initialize the df
   
   # Extract column indeces of SURO, IFWO and AGWO
@@ -270,7 +353,7 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
           mutate(dys = ifelse((hyr %% 4) == 0, 366, 365), yr = hyr - hyr[1]) %>%
           mutate(per = yr + doy / dys)
   
-  # CALCULATE LATERAL LOADS ----
+  # CALCULATE LATERAL LOADS 
   for (i in 1 : 3) {
     
     if(names(ind)[i] == 'SURO') {
@@ -310,7 +393,7 @@ runoff_components <- function(strD = NULL, endD = NULL, wqDir = NULL,
 #_______________________________________________________________________________
 reduce_qlc <- function(strDte = NULL, endDte = NULL, df2Red = NULL) {
   
-  # Synopsis ----
+  # Synopsis 
   # This function accepts a data frame of flows and start/end dates and
   # Returns a modified data frame truncated to the start/end dates. 
   
@@ -333,9 +416,6 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
   suppressMessages(library(TSA)); suppressMessages(library(ggplot2));
   suppressMessages(library(dplyr)); suppressMessages(library(lubridate))
   suppressMessages(library(reshape2));
-  
-  sapply(paste0('C:/Users/rshojin/Desktop/006_scripts/github/hydroRMS/R/',
-                c('hydro_year.R', 'day_of_hydro_year.R')), source)
   
   # ORGANIZE DATA 
   names(wqDF) <- c('Date', 'C_mgL')
@@ -462,8 +542,8 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
                                          '288' = 'J', '319' = 'A', '350' = 'S'))
     
     ggsave(paste0('seasonal_', par, '.png'), plot = plt, width = 4.250,
-           height = 4.144, path = 'D:/siletz/calib/wq/seasonal', units = 'in',
-           dpi = 300)
+           height = 4.144, path = 'C:/siletz_tmdl/05_misc/figures/seasonal_wq',
+           units = 'in', dpi = 300)
     
   }
   
@@ -479,8 +559,8 @@ seasonal_wq_conc <- function(wqDF = NULL, par = NULL, lo = 0.10, hi = 0.90,
                       shape = 2, stroke = 1.2, color = 'darkred', fill = 'yellow')
     
     ggsave(paste0('seasonal_ts_', par, '.png'), plot = plt, width = 10,
-           height = 7.5, path = 'D:/siletz/calib/wq/seasonal', units = 'in',
-           dpi = 300)
+           height = 7.5, path = 'C:/siletz_tmdl/05_misc/figures/seasonal_wq',
+           units = 'in', dpi = 300)
     
   }
   
@@ -530,11 +610,11 @@ ro_comp_analysis <- function(roCmp) {
 #_______________________________________________________________________________
 proc_daily_flows <- function(mDat, gDat) {
   
-  # Synopsis ----
+  # Synopsis 
   # This function takes two files (model and gage data) and returns a data frame
   # combined data frame of both
   
-  # Read and aggregate model data ----
+  # Read and aggregate model data 
   qData <- readRDS(mDat)
   
   qData <- qData[['reach_flows']][, c(1, 12, 5)]
@@ -548,7 +628,7 @@ proc_daily_flows <- function(mDat, gDat) {
   # Convert m3/s to cfs
   qData[, 2 : 3] <- qData[, 2 : 3] * 35.314666721
   
-  # Read and clean up gage data ----
+  # Read and clean up gage data 
   qGage <- read.csv(gDat, stringsAsFactors = FALSE)
   
   qGage$Date <- as.Date(qGage$Date, '%Y-%m-%d', tz = 'America/Los_Angeles')
@@ -632,6 +712,7 @@ read_ts_loads <- function(tFil = NULL, ts = NULL, strD = NULL, endD = NULL) {
   
 }
 
+#_______________________________________________________________________________
 hspf_output <- function(iDir = NULL, iFil = NULL, oDir = NULL) {
  
   # This function runs output for Q2k input. Input parameters include:
@@ -639,8 +720,9 @@ hspf_output <- function(iDir = NULL, iFil = NULL, oDir = NULL) {
   # 2) The control file iteration name 
   # 3) The output directory location
    
-  sapply(paste0('D:/siletz/scripts/R/',c('water_quality_run.R', 'utilities.R',
-                                         'water_quality_calib.R')), source)
+  sapply(paste0('C:/siletz_tmdl/04_scripts/01_hspf/02_R/',c('fnct_wq_run_hspf.R',
+                                                            'fnct_utilities_hspf.R',
+                                                            'fnct_wq_calib_hspf.R')), source)
   
   cFil <- c('NOx', 'NH3', 'TKN', 'TP', 'PO4', 'OrC')
   
@@ -674,3 +756,61 @@ hspf_output <- function(iDir = NULL, iFil = NULL, oDir = NULL) {
   print('Writing output files complete. Check your output directories')
   
 }
+
+#_______________________________________________________________________________
+# CALCULATE THE DAY OF THE HYDROLOGIC YEAR
+day_of_hydro_year <- function(hDates = NULL) {
+  
+  # Check to see if dates vector is a date, don't coerce, but raise exception
+  if (!lubridate::is.Date(hDates) & !lubridate::is.POSIXct(hDates)) {
+    
+    stop('Please convert the dates using as.Date()')
+    
+  }
+  
+  pYear <- ifelse(lubridate::month(hDates) >= 10, lubridate::year(hDates) + 1,
+                  lubridate::year(hDates)) - 1
+  
+  # Check data type -- IF is.DATE
+  if (lubridate::is.Date(hDates)) {
+    
+    fdohy <- as.Date(paste0(pYear, '-10-01'), '%Y-%m-%d')
+    
+    dohy <- as.numeric(hDates) - as.numeric(fdohy) + 1
+    
+  }
+  
+  # Check data type -- IF is.POSIXct
+  if (lubridate::is.POSIXct(hDates)) {
+    
+    fdohy <- as.POSIXct(paste0(pYear, '-10-01'), '%Y-%m-%d',
+                        tz = 'America/Los_Angeles')
+    
+    dohy <- (as.numeric(hDates) - as.numeric(fdohy)) / 86400
+    
+  }
+  
+  return(dohy)
+  
+}
+
+#_______________________________________________________________________________
+# CALCULATE THE HYDROLOGIC YEAR
+hydro_year <- function(hDates = NULL) {
+  
+  # library('')
+  
+  # Check to see if dates vector is a date, don't coerce, but raise exception
+  if (!lubridate::is.Date(hDates) & !lubridate::is.POSIXct(hDates)) {
+    
+    stop('Please convert the dates using as.Date() or as.POSIXct()')
+    
+  }
+  
+  hYear <- ifelse(lubridate::month(hDates) >= 10, lubridate::year(hDates) + 1,
+                  lubridate::year(hDates))
+  
+  return(hYear)
+  
+}
+

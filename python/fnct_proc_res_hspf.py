@@ -5,14 +5,14 @@
 # Lampert, David. (2015). PyHSPF: Data integration software for hydrologic and
 #   water quality modeling. 
 
-def proc_hspf_results(n):
+def proc_hspf_results(newNme, outPut):
 
     # OPEN THE OUTPUT WDM AND GET THE DSNS
-    messagepath = 'D:/siletz/hspfmsg.wdm'
+    messagepath = 'c:/siletz_tmdl/03_models/01_hspf/hspfmsg.wdm'
 
     wdm = WDMUtil(verbose = False, messagepath = messagepath)
 
-    wdmFile = 'siletz' + str(n) + '_out.wdm'
+    wdmFile = newNme + '.hspf_out.wdm'
 
     wdm.open(wdmFile, 'r')
 
@@ -41,8 +41,6 @@ def proc_hspf_results(n):
 
         tmpNme = str(dsns[j]) + '_' + str(staids[j]) + '_' + str(idcons[j])
 
-        # tmpNme = 'PRLN' + str(dsns[i])
-
         tmpDat = wdm.get_data(wdmFile, i + 1)
 
         dctOut[tmpNme] = tmpDat
@@ -54,14 +52,6 @@ def proc_hspf_results(n):
     # COERCE TO DATAFRAME AND WRITE TO FILE
     tmp = pd.DataFrame.from_dict(dctOut)
 
-    # cutStr = datetime.datetime(2004, 1, 1)
+    outNme = 'c:/siletz_tmdl/02_outputs/01_hspf/' + newNme + '_' + outPut + '.csv'
 
-    # cutEnd = datetime.datetime(2018, 4, 1)
-
-    # dfOut = tmp.loc[(tmp['Date'] >= cutStr) & (tmp['Date'] <= cutEnd), ]
-
-    # dfOut.to_csv('calib\\siletz_perlnd_runoff_names.csv', index = False)
-
-    # tmp.to_csv('D:/siletz/calib/wq/siletz_out_runoff.csv', index = False)
-
-    tmp.to_csv('D:/siletz/calib/wq/siletz_out_hydraulics.csv', index = False)
+    tmp.to_csv(outNme, index = False)

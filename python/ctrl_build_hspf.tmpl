@@ -1,0 +1,22 @@
+# Main control file for building HSPF model files
+
+import os, csv, pickle, datetime, math
+import pandas as pd
+import shapefile
+from pyhspf import Subbasin, Watershed, HSPFModel, WDMUtil
+from array import *
+
+# Source the functions for processing and builing model
+exec(open('c:/siletz_tmdl/04_scripts/01_hspf/01_python/fnct_build_hspf.py').read())
+
+# Specify the land use file and path
+hruF
+# Specify the precipitation file and path
+pcpF
+# Specify the PET file and path
+petF
+# Specify the model file and path (where to write the model)
+modF
+
+# BUILD THE MODEL
+build_hspf_model(hruF, pcpF, petF, modF)
